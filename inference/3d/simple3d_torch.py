@@ -6,16 +6,59 @@ import trimesh
 
 import torch
 
+from plyfile import PlyData, PlyElement
+
+def save_pc_to_ply(pc , ply_fn):
+	num = pc.shape[0]
+	channel = pc.shape[1]
+
+	v_array=[]
+	v_array = np.empty(num, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
+
+	v_array['x'] = pc[:,0]
+	v_array['y'] = pc[:,1]
+	v_array['z'] = pc[:,2]
+
+	PLY_v = PlyElement.describe(v_array, 'vertex')
+
+	
+	PlyData([PLY_v]).write(ply_fn)
+	
+def clear_duplicated_vertices(pc):
+	pc = np.round(pc, 6)
+
+	print ("Clear duplicated vertices")
+	print ("original num", pc.shape[0])
+
+	pc_dict=  dict()
+	for p in pc:
+		key = p.tostring()
+		pc_dict[key] = p
+	new_pc =[]
+	for k in pc_dict:
+		new_pc +=[p]
+
+	new_pc = np.array(new_pc)
+	print ("after num", new_pc.shape[0])
+
+	return new_pc
+
+
+
 #>0
 def compute_force_torch(x):
-	y = 1/torch.pow(x+1e-6,6)
+	y = 1/(torch.pow(x*1000,8)+1e-6)
+	#print (x.min(),x.max())
+	#y = 1/(pow(np.e, x*10))
 	return y
 
 
 def create_map_from_obj_torch(fn, count=10000, size=32):
 	mesh = trimesh.load_mesh(fn)
 
-	nodes, face_index = trimesh.sample.sample_surface_even(mesh, count)
+	#nodes, face_index = trimesh.sample.sample_surface_even(mesh, count)
+
+	nodes = mesh.vertices
 
 	
 
@@ -23,9 +66,13 @@ def create_map_from_obj_torch(fn, count=10000, size=32):
 	max_coordinate= nodes.max()
 
 	#normalize nodes
-	nodes = ((nodes-min_coordinate)/(max_coordinate-min_coordinate)/4*3+0.125)*size
+	nodes = ((nodes-min_coordinate)/(max_coordinate-min_coordinate)/10*9+0.05)
+
+	mesh.vertices=((mesh.vertices - min_coordinate)/(max_coordinate-min_coordinate)/10*9+0.05)
 
 	np.savetxt("gt_pc.txt", nodes,delimiter=';')
+
+	mesh.export("gt_mesh.obj")
 
 	nodes = torch.FloatTensor(nodes).cuda()
 	return  nodes
@@ -37,7 +84,7 @@ def compute_force_verts_torch(gt_nodes, vertices):
 	total_vert_num = vertices.shape[0]
 
 
-	batch_size = 4096
+	batch_size = 1024
 	start_id = 0
 
 	
@@ -74,12 +121,12 @@ def compute_force_verts_torch(gt_nodes, vertices):
 
 
 
-def compute_force_field_torch( gt_nodes, map_size=32, displacement = np.array([0.1,0.1,0.1])):
+def compute_force_field_torch( gt_nodes, map_size=32, displacement = np.array([0.001,0.001,0.001])):
 	size = map_size
 
-	x=  np.linspace(0,size-1, size) +displacement[0]
-	y = np.linspace(0, size-1,size) +displacement[1]
-	z = np.linspace(0, size-1,size) +displacement[2]
+	x=  np.linspace(0,size-1, size)/(size*1.0) +displacement[0]
+	y = np.linspace(0, size-1,size)/(size*1.0) +displacement[1]
+	z = np.linspace(0, size-1,size)/(size*1.0) +displacement[2]
 	xv , yv, zv = np.meshgrid(x, y, z) #size*size*size
 	vertices = np.concatenate((xv.reshape(-1,1),yv.reshape(-1,1),zv.reshape(-1,1)),1) #(size^3)*3
 
@@ -115,16 +162,20 @@ def animation_torch(vertices, gt_nodes, steps):
 	torch.random.manual_seed(0)
 	for s in range(steps):
 		print (s)
-		v=v+ torch.randn(vert_num,3).cuda()/20
+		v=v+ torch.randn(vert_num,3).cuda()/100/(s+1)
 		field = compute_force_verts_torch(gt_nodes,v)
 		v=v+field
 
 		v_np = np.array(v.data.tolist())
-		np.savetxt("step%02d"%s+".txt", v_np, delimiter=";")
+
+		v_np = clear_duplicated_vertices(v_np)
+
+		save_pc_to_ply(v_np, "step%02d"%s+".ply")
+		#np.savetxt("step%02d"%s+".ply", v_np, delimiter=";")
 		
 
-size=64
-count=10000
+size=16
+count=100000
 print ("sample vertices num", size*size*size)
 print ("sample gt nodes num", count )
 print("create nodes")
@@ -134,7 +185,7 @@ field, vertices=compute_force_field_torch( gt_nodes, map_size=size, displacement
 print("save force field obj")
 visualize_field_torch(field, vertices, gt_nodes, out_fn="field0.txt")
 print("steps")
-animation_torch(vertices, gt_nodes, steps=10)
+animation_torch(vertices, gt_nodes, steps=20)
 
 """
 print ("compute force field")
