@@ -1,3 +1,6 @@
+*.obj
+*.ply
 .idea
 *.txt
 preprocessing/test
+*__pycache__*

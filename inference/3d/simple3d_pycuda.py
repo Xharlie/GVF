@@ -2,127 +2,95 @@ import numpy as np
 import trimesh
 from plyfile import PlyData, PlyElement
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../preprocessing'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../utils'))
+import data_util
 import cal_field
+import time
 
-def save_pc_to_ply(pc , ply_fn):
+def save_pc_to_ply(pc, ply_fn):
 	num = pc.shape[0]
-	channel = pc.shape[1]
-
-	v_array=[]
 	v_array = np.empty(num, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
-
 	v_array['x'] = pc[:,0]
 	v_array['y'] = pc[:,1]
 	v_array['z'] = pc[:,2]
-
 	PLY_v = PlyElement.describe(v_array, 'vertex')
-
-	
 	PlyData([PLY_v]).write(ply_fn)
 	
 def clear_duplicated_vertices(pc):
 	pc = np.round(pc, 6)
 
 	print ("Clear duplicated vertices")
-	print ("original num", pc.shape[0])
+	print ("original num", pc.shape)
 
-	pc_dict=  dict()
+	pc_dict = dict()
 	for p in pc:
 		key = p.tostring()
 		pc_dict[key] = p
 	new_pc =[]
 	for k in pc_dict:
-		new_pc +=[p]
+		new_pc +=[pc_dict[k]]
 
 	new_pc = np.array(new_pc)
-	print ("after num", new_pc.shape[0])
+	print ("after num", new_pc.shape)
 
 	return new_pc
 
-
-
-#>0
-def compute_force_torch(x):
-	y = 1/(torch.pow(x*1000,8)+1e-6)
-	#print (x.min(),x.max())
-	#y = 1/(pow(np.e, x*10))
-	return y
-
-
 def create_map_from_obj(fn, count=10000, size=32):
 	mesh = trimesh.load_mesh(fn)
-
 	#nodes, face_index = trimesh.sample.sample_surface_even(mesh, count)
-
-	nodes = mesh.vertices
-
-	min_coordinate= nodes.min()
-	max_coordinate= nodes.max()
-
 	#normalize nodes
-	nodes = ((nodes-min_coordinate)/(max_coordinate-min_coordinate)/10*9+0.05)
-
-	mesh.vertices=((mesh.vertices - min_coordinate)/(max_coordinate-min_coordinate)/10*9+0.05)
-
-	np.savetxt("gt_pc.txt", nodes,delimiter=';')
-
+	mesh.vertices = data_util.normalize_pc(mesh.vertices)
+	np.savetxt("gt_pc.txt", mesh.vertices, delimiter=';')
 	mesh.export("gt_mesh.obj")
+	return mesh.vertices
 
-	return  nodes
-
-# gt_nodes node_num*3
-# verts    vert_num*3
-def compute_force_verts_torch(gt_nodes, vertices):
+def compute_force_verts(gt_nodes, vertices):
+	tic = time.time()
 	gvfs = cal_field.cal_field(vertices, gt_nodes)
+	print("force time: {}".format(time.time()-tic))
 	return gvfs
 
+def compute_force_field(gt_nodes, size=32, displacement = np.array([0.001,0.001,0.001])):
 
-
-
-def compute_force_field( gt_nodes, map_size=32, displacement = np.array([0.001,0.001,0.001])):
-	size = map_size
-
-	x=  np.linspace(0,size-1, size)/(size*1.0) +displacement[0]
-	y = np.linspace(0, size-1,size)/(size*1.0) +displacement[1]
-	z = np.linspace(0, size-1,size)/(size*1.0) +displacement[2]
-	xv , yv, zv = np.meshgrid(x, y, z) #size*size*size
+	x = np.linspace(0, size-1,size)/(size*0.5) - 1.0
+	y = np.linspace(0, size-1,size)/(size*0.5) - 1.0
+	z = np.linspace(0, size-1,size)/(size*0.5) - 1.0
+	xv, yv, zv = np.meshgrid(x, y, z) #size*size*size
 	vertices = np.concatenate((xv.reshape(-1,1),yv.reshape(-1,1),zv.reshape(-1,1)),1) #(size^3)*3
-	
-	field = compute_force_verts_torch(gt_nodes, vertices)
-
+	field = compute_force_verts(gt_nodes, vertices)
 	return field, vertices
 
-def visualize_field_torch(field, vertices, gt_nodes, out_fn):
+def visualize_field(field, vertices, out_fn):
 	out = np.concatenate((vertices,field),1) #(size^3)*6
 	np.savetxt(out_fn, out, delimiter=';')
 
 def animation(vertices, gt_nodes, steps):
-	node_num=gt_nodes.shape[0]
 	vert_num = vertices.shape[0]
 	v=vertices*1
 	for s in range(steps):
-		print (s)
-		v=v+ np.randn(vert_num,3).cuda()/100/(s+1)
-		field = compute_force_verts_torch(gt_nodes,v)
+		print(s)
+		v = v+ (np.random.uniform(size=vert_num*3)/(100.00*(s+1))).reshape(vert_num,3)
+		field = compute_force_verts(gt_nodes,v)
 		v=v+field
-		v_np = np.array(v.data.tolist())
-		v_np = clear_duplicated_vertices(v_np)
-		save_pc_to_ply(v_np, "step%02d"%s+".ply")
+		print("v shape", v.shape)
+		# v = clear_duplicated_vertices(v)
+		save_pc_to_ply(v, "step%02d"%s+".ply")
 
 
-size=16
+size=32
 count=100000
 print ("sample vertices num", size*size*size)
 print ("sample gt nodes num", count )
 print("create nodes")
 gt_nodes = create_map_from_obj('chair.obj', count=count,size=size)
 print("compute force")
-field, vertices=compute_force_field( gt_nodes, map_size=size, displacement = [0.0,0.0,0.0])
+field, vertices=compute_force_field( gt_nodes, size=size, displacement = np.array([0.0,0.0,0.0]))
 print("save force field obj")
-visualize_field_torch(field, vertices, gt_nodes, out_fn="field0.txt")
+visualize_field(field, vertices, out_fn="field0.txt")
 print("steps")
-animation_torch(vertices, gt_nodes, steps=20)
+animation(vertices, gt_nodes, steps=7)
 
 """
 print ("compute force field")

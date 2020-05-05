@@ -21,12 +21,11 @@ def cal_field(pnts, gt_pnts, gpu=0):
         ctx1 = dev1.make_context()
 
     mod = SourceModule("""
-    include <math.h>
-    #define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
-
-    __device__ void compute_force_scalar(float dist)
+    __device__ float compute_force_scalar(float dist)
     {
-	    return 1/(pow(dist*1000,8)+1E-6)
+        float dist_expand = dist*100;
+	    return 1/(dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
+	    // return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
     }
 
     __global__ void p2g(float *gvfs, float *pnts, float *gt_pnts, int pnt_num, int gt_num)
@@ -35,7 +34,8 @@ def cal_field(pnts, gt_pnts, gpu=0):
         float px = pnts[p_id*3];
         float py = pnts[p_id*3+1];
         float pz = pnts[p_id*3+2];
-        float x_dist, y_dist, z_dist, dist, force_sum=0, x_sum=0, y_sum=0, z_sum=0;
+        float force, force_sum=0, x_sum=0, y_sum=0, z_sum=0;
+        float dist, x_dist, y_dist, z_dist;
         for (int gt_id=0; gt_id<gt_num; gt_id++){
             x_dist = gt_pnts[gt_id*3] - px;
             y_dist = gt_pnts[gt_id*3+1] - py;
@@ -47,6 +47,7 @@ def cal_field(pnts, gt_pnts, gpu=0):
             y_sum = y_sum + y_dist * force;
             z_sum = z_sum + z_dist * force;
         }
+        //printf("%f  ",y_sum);
         gvfs[p_id*3] = x_sum / force_sum;
         gvfs[p_id*3+1] = y_sum / force_sum;
         gvfs[p_id*3+2] = z_sum / force_sum;
@@ -58,7 +59,7 @@ def cal_field(pnts, gt_pnts, gpu=0):
     gt_num = gt_pnts.shape[0]
 
     print("start to cal gvf gt field pnt num: ", gt_num)
-    gvfs = np.zeros((pnt_num, gt_num, 3)).astype(np.float32)
+    gvfs = np.zeros((pnt_num, 3)).astype(np.float32)
     gridSize = int((pnt_num + kMaxThreadsPerBlock - 1) / kMaxThreadsPerBlock)
     pnts_tries_ivt = mod.get_function("p2g")
     pnts_tries_ivt(drv.Out(gvfs), drv.In(np.float32(pnts)), drv.In(np.float32(gt_pnts)), np.int32(pnt_num), np.int32(gt_num), block=(kMaxThreadsPerBlock,1,1), grid=(gridSize,1))
