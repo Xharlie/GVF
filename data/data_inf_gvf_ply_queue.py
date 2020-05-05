@@ -67,7 +67,7 @@ class Pt_sdf_img(threading.Thread):
 
 
     def get_ivt_h5_filenm(self, cat_id, obj, view_id):
-        return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.h5".format(self.FLAGS.filename))
+        return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.h5".format(self.FLAGS.filename)), os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
 
     def get_obj_file_filenm(self, cat_id, obj):
         return os.path.join(self.norm_mesh_dir, cat_id, obj, "pc_norm.obj")
@@ -112,8 +112,9 @@ class Pt_sdf_img(threading.Thread):
         locs, norms, dists, gt_pnts =None,None,None,None
         cat_id, obj, num = self.listinfo[index]
         if self.FLAGS.filename is not None:
-            ivt_file = self.get_ivt_h5_filenm(cat_id, obj, str(num))
+            ivt_file, pntfile = self.get_ivt_h5_filenm(cat_id, obj, str(num))
             locs, norms, dists = self.get_ivt_h5(ivt_file)
+            gt_pnts = np.loadtxt(pntfile)
         else:
             obj_file = self.get_obj_file_filenm(cat_id, obj, str(num))
             gt_pnts = self.get_gt_pnts(obj_file)
@@ -246,8 +247,7 @@ class Pt_sdf_img(threading.Thread):
                 batch_locs.append(locs)
                 batch_norms.append(norms)
                 batch_dists.append(dists)
-            else:
-                batch_gt_pnts.append(gt_pnts)
+            batch_gt_pnts.append(gt_pnts)
             batch_img[cnt, ...] = img.astype(np.float32)
             batch_obj_rot_mat[cnt, ...] = obj_rot_mat
             batch_trans_mat[cnt, ...] = trans_mat

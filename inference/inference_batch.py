@@ -16,7 +16,7 @@ sys.path.append(os.path.join(BASE_DIR, 'data_load'))
 sys.path.append(os.path.join(BASE_DIR, 'preprocessing'))
 import data_util
 import model_normalization as model
-import data_inf_gvf_h5_queue as data_gvf_h5_queue # as data
+import data_inf_gvf_ply_queue as data_gvf_h5_queue # as data
 import create_file_lst
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
 import cal_field
@@ -136,6 +136,7 @@ def test_uni_epoch(grid, TEST_DATASET, nums):
             locs, norms, dists = unisample_pnts(batch_data, grid, nums, threshold=FLAGS.uni_thresh)
         elif FLAGS.unitype == "ball":
             locs, norms, dists = ballsample_pnts(batch_data, grid, nums)
+        save_txt(batch_data, batch_data['gt_pnt'])
         save_data_ply(batch_data, locs, norms, dists, FLAGS.unitype)
         save_data_ply(batch_data, locs, norms, dists, "surf_{}".format(0), num_limit=FLAGS.initnums*4)
         print(' -----rounds %d, %d points ------ %d/%d ' % (-1, locs.shape[1], batch_idx+1, num_batches))
@@ -157,12 +158,11 @@ def test_near_epoch(TEST_DATASET, nums, stdratio, stdlwb, stdupb, weightform, ro
             weights = 1.0 / np.maximum(dists, 5e-3)
         pcs = sample_from_MM(locs, norms, stds, weights, nums, dists, distr=FLAGS.distr, gridsize=FLAGS.gridsize)
         batch_data['locs'] = pcs
-        locs, norms, dists = nearsample_pnts(sess, ops, round, batch_data, num_in_gpu, SPLIT_SIZE)
+        locs, norms, dists = nearsample_pnts(batch_data)
         # np.savetxt(os.path.join(outdir, "surf_samp{}.txt".format(i)), pc, delimiter=";")
         save_data_h5(batch_data, locs, norms, dists, "surf_{}".format(round+1))
         print(' -----rounds %d, %d points ------ %d/%d' % (round, batch_data['locs'].shape[1], batch_idx+1, num_batches))
         print( ' time per batch: %.02f, ' % (time.time() - tic))
-    sess.close()
     print("sess closed !!!!!!!!!!!!!")
 
 def unisample_pnts(batch_data, unigrid, nums, threshold=0.1):
@@ -170,12 +170,13 @@ def unisample_pnts(batch_data, unigrid, nums, threshold=0.1):
         inds = np.random.choice(unigrid.shape[1], (unigrid.shape[0], nums))
         unigrid = unigrid[inds]
     gt_nodes = batch_data["gt_pnts"][0]
-    gvfs, drcts = cal_field.cal_field(unigrid[0], gt_nodes)
-    uni_dist = np.linalg.norm(uni_ivts, axis=2)
-    ind = uni_dist <= threshold
+    gvfs = cal_field.cal_field(unigrid[0], gt_nodes)
+    drcts = -data_util.normalize_norm(gvfs, 1)
+    dist = np.linalg.norm(gvfs, axis=2)
+    ind = dist <= threshold
     drcts = drcts[ind]
     locs = unigrid[ind] + gvfs[ind]
-    return np.array([locs]), -np.array([drcts]), np.array([uni_dist[ind]])
+    return np.array([locs]), np.array([drcts]), np.array([dist[ind]])
 
 
 def ballsample_pnts(batch_data, ballgrid, nums):
@@ -231,6 +232,15 @@ def save_data_ply(batch_data, locs, norms, dists, name, num_limit=None):
         plyfile = os.path.join(outdir, "{}.ply".format(name))
         data_util.save_pcnorm_to_ply(locs[i], norms[i], plyfile)
         print("saved in: ", plyfile)
+
+def save_txt(batch_data, gt_pnt):
+    for i in range(len(gt_pnt)):
+        view_id = batch_data["view_id"][i]
+        outdir = os.path.join(FLAGS.outdir, batch_data["cat_id"][i], batch_data["obj_nm"][i], str(view_id), FLAGS.unitype)
+        os.makedirs(outdir, exist_ok=True)
+        txtfile = os.path.join(outdir, "gt_pnt.txt")
+        np.savetxt(txtfile, gt_pnt[i])
+        print("saved in: ", txtfile)
 
 def rectify(norm, right_drct):
     cosim = np.dot(norm, right_drct)
@@ -422,12 +432,13 @@ def z_norm_matrix(norm):
     R = I + W + np.expand_dims(C, axis=2) * Wsqr
     return R
 
-def nearsample_pnts(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE):
-    surface_ivts, surf_norm = inference_batch(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE)
-    surf_norm=-surf_norm
-    surface_place = batch_data["locs"] + surface_ivts
-    dist = np.linalg.norm(surface_ivts, axis=2)
-    return surface_place, surf_norm, dist
+def nearsample_pnts(batch_data):
+    gt_nodes = batch_data["gt_pnts"][0]
+    gvfs = cal_field.cal_field(batch_data["locs"][0], gt_nodes)
+    norm = -data_util.normalize_norm(gvfs, 1)
+    surface_place = batch_data["locs"] + gvfs
+    dist = np.linalg.norm(gvfs, axis=2)
+    return surface_place, np.array([norm]), dist
 
 def get_list(cats_limit, filename):
     TEST_LISTINFO = []

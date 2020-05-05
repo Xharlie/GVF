@@ -19,3 +19,5 @@ def save_pcnorm_to_ply(pc, norm, ply_fn):
     v_array['nz'] = norm[:, 2]
     PLY_v = PlyElement.describe(v_array, 'vertex')
     PlyData([PLY_v]).write(ply_fn)
+
+def normalize_norm():
