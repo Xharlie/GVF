@@ -39,7 +39,7 @@ class Pt_sdf_img(threading.Thread):
         # self.num_surf_pnts = FLAGS.num_surf_pnts
         # self.batch_size = FLAGS.batch_size
         self.img_dir = info['rendered_dir']
-        self.ivt_dir = info['ivt_dir']
+        self.gvf_dir = info['gvf_dir']
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 60000
         self.data_num = len(self.listinfo)
@@ -64,8 +64,8 @@ class Pt_sdf_img(threading.Thread):
         return img_dir, None
 
 
-    def get_ivt_h5_filenm(self, cat_id, obj):
-        return os.path.join(self.ivt_dir, cat_id, obj, "ivt_sample.h5")
+    def get_gvf_h5_filenm(self, cat_id, obj):
+        return os.path.join(self.gvf_dir, cat_id, obj, "gvf_sample.h5")
 
     def pc_normalize(self, pc, centroid=None):
 
@@ -105,52 +105,43 @@ class Pt_sdf_img(threading.Thread):
 
     def getitem(self, index):
         cat_id, obj, num = self.listinfo[index]
-        ivt_file = self.get_ivt_h5_filenm(cat_id, obj)
-        uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params = self.get_ivt_h5(ivt_file, cat_id, obj)
-        # if surf_onedge is None or surf_onedge.shape[0] != surf_pnts.shape[0]:
-        #     command_str = "rm -rf " + ivt_file
-        #     print("command:", command_str)
-        #     os.system(command_str)
-        #     return None
-        img_dir, img_file_lst = self.get_img_dir(cat_id, obj)
-        return uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params, img_dir, img_file_lst, cat_id, obj, num
+        gvf_file = self.get_gvf_h5_filenm(cat_id, obj)
+        if self.FLAGS.source == "fly":
+            
+        else:
+            uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, uni_onedge, surf_onedge, sphere_onedge, norm_params = self.get_gvf_h5(gvf_file, cat_id, obj)
 
-    def get_ivt_h5(self, ivt_h5_file, cat_id, obj):
-        # print(ivt_h5_file)
-        uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params = None, None, None, None, None, None, None, None, None, None
+        img_dir, img_file_lst = self.get_img_dir(cat_id, obj)
+        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params, img_dir, img_file_lst, cat_id, obj, num
+
+    def get_gvf_h5(self, gvf_h5_file, cat_id, obj):
+        # print(gvf_h5_file)
+        uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params = None, None, None, None, None
         try:
-            h5_f = h5py.File(ivt_h5_file, 'r')
+            h5_f = h5py.File(gvf_h5_file, 'r')
             norm_params = h5_f['norm_params'][:].astype(np.float32)
             if self.FLAGS.uni_num >0:
-                if 'uni_pnts' in h5_f.keys() and 'uni_ivts' in h5_f.keys():
+                if 'uni_pnts' in h5_f.keys() and 'uni_gvfs' in h5_f.keys():
                     uni_pnts = h5_f['uni_pnts'][:].astype(np.float32)
-                    uni_ivts = h5_f['uni_ivts'][:].astype(np.float32)
+                    uni_gvfs = h5_f['uni_gvfs'][:].astype(np.float32)
                     if self.FLAGS.edgeweight != 1.0:
                         uni_onedge = h5_f['uni_onedge'][:].astype(np.float32)
                 else:
-                    raise Exception(cat_id, obj, "no uni ivt and sample")
+                    raise Exception(cat_id, obj, "no uni gvf and sample")
             if self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num >0:
-                if ('surf_pnts' in h5_f.keys() and 'surf_ivts' in h5_f.keys()):
+                if ('surf_pnts' in h5_f.keys() and 'surf_gvfs' in h5_f.keys()):
                     surf_pnts = h5_f['surf_pnts'][:].astype(np.float32)
-                    surf_ivts = h5_f['surf_ivts'][:].astype(np.float32)
+                    surf_gvfs = h5_f['surf_gvfs'][:].astype(np.float32)
                     if self.FLAGS.edgeweight != 1.0:
                         surf_onedge = h5_f['surf_onedge'][:].astype(np.float32)
                 else:
-                    raise Exception(cat_id, obj, "no surf ivt and sample")
-            if self.FLAGS.sphere_num > 0:
-                if ('sphere_pnts' in h5_f.keys() and 'sphere_ivts' in h5_f.keys()):
-                    sphere_pnts = h5_f['sphere_pnts'][:].astype(np.float32)
-                    sphere_ivts = h5_f['sphere_ivts'][:].astype(np.float32)
-                    if self.FLAGS.edgeweight != 1.0:
-                        sphere_onedge = h5_f['sphere_onedge'][:].astype(np.float32)
-                else:
-                    raise Exception(cat_id, obj, "no uni ivt and sample")
+                    raise Exception(cat_id, obj, "no surf gvf and sample")
         except:
-            print("h5py wrong:", ivt_h5_file)
+            print("h5py wrong:", gvf_h5_file)
         finally:
-            # return uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params
+            # return uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, uni_onedge, surf_onedge, sphere_onedge, norm_params
             h5_f.close()
-        return uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params
+        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params
 
     # def get_img_old(self, img_dir, num, file_lst):
     #     params = np.loadtxt(img_dir + "/rendering_metadata.txt")
@@ -232,14 +223,12 @@ class Pt_sdf_img(threading.Thread):
         if index + self.FLAGS.batch_size > self.epoch_amount:
             index = index + self.FLAGS.batch_size - self.epoch_amount
         batch_pnts = np.zeros((self.FLAGS.batch_size, self.FLAGS.num_pnts, 3)).astype(np.float32)
-        batch_ivts = np.zeros((self.FLAGS.batch_size, self.FLAGS.num_pnts, 3)).astype(np.float32)
+        batch_gvfs = np.zeros((self.FLAGS.batch_size, self.FLAGS.num_pnts, 3)).astype(np.float32)
         batch_norm_params = np.zeros((self.FLAGS.batch_size, 4)).astype(np.float32)
         if self.FLAGS.alpha:
             batch_img = np.zeros((self.FLAGS.batch_size, self.FLAGS.img_h, self.FLAGS.img_w, 4), dtype=np.float32)
         else:
             batch_img = np.zeros((self.FLAGS.batch_size, self.FLAGS.img_h, self.FLAGS.img_w, 3), dtype=np.float32)
-        if self.FLAGS.edgeweight != 1.0:
-            batch_onedge = np.zeros((self.FLAGS.batch_size, self.FLAGS.num_pnts, 1)).astype(np.float32)
         batch_obj_rot_mat = np.zeros((self.FLAGS.batch_size, 3, 3), dtype=np.float32)
         batch_trans_mat = np.zeros((self.FLAGS.batch_size, 4, 3), dtype=np.float32)
         batch_cat_id = []
@@ -251,33 +240,21 @@ class Pt_sdf_img(threading.Thread):
             single_obj = self.getitem(self.order[i])
             if single_obj == None:
                 raise Exception("single mesh is None!")
-            uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, uni_onedge, surf_onedge, sphere_onedge, norm_params, img_dir, img_file_lst, cat_id, obj, num = single_obj
+            uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params, img_dir, img_file_lst, cat_id, obj, num = single_obj
             img, trans_mat, obj_rot_mat = self.get_img(img_dir, num)
             pnts = np.zeros((0, 3))
-            ivts = np.zeros((0, 3))
-            onedge = np.zeros((0))
+            gvfs = np.zeros((0, 3))
             if self.FLAGS.uni_num > 0:
                 if self.FLAGS.uni_num > uni_pnts.shape[0]:
                     uni_choice = np.random.randint(uni_pnts.shape[0], size=self.FLAGS.uni_num)
                 else:
                     uni_choice = np.asarray(random.sample(range(uni_pnts.shape[0]), self.FLAGS.uni_num), dtype=np.int32)
                 pnts = np.concatenate([pnts, uni_pnts[uni_choice, :]],axis=0)
-                ivts = np.concatenate([ivts, uni_ivts[uni_choice, :]],axis=0)
-                if self.FLAGS.edgeweight != 1.0:
-                    onedge = np.concatenate([onedge, uni_onedge[uni_choice]],axis=0)
-            if self.FLAGS.sphere_num > 0:
-                if self.FLAGS.sphere_num > sphere_pnts.shape[0]:
-                    sphere_choice = np.random.randint(sphere_pnts.shape[0], size=self.FLAGS.sphere_num)
-                else:
-                    sphere_choice = np.asarray( random.sample(range(sphere_pnts.shape[0]), self.FLAGS.sphere_num), dtype=np.int32)
-                pnts = np.concatenate([pnts, sphere_pnts[sphere_choice, :]], axis=0)
-                ivts = np.concatenate([ivts, sphere_ivts[sphere_choice, :]], axis=0)
-                if self.FLAGS.edgeweight != 1.0:
-                    onedge = np.concatenate([onedge, sphere_onedge[sphere_choice]],axis=0)
+                gvfs = np.concatenate([gvfs, uni_gvfs[uni_choice, :]],axis=0)
             if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > 0:
                 indexlen = surf_pnts.shape[0]
                 if self.FLAGS.surfrange[0] > 0.0 or self.FLAGS.surfrange[1] < 0.15:
-                    dist = np.linalg.norm(surf_ivts, axis=1)
+                    dist = np.linalg.norm(surf_gvfs, axis=1)
                     indx = np.argwhere((dist >= self.FLAGS.surfrange[0]) & (dist <= self.FLAGS.surfrange[1])).reshape(-1)
                     indexlen = indx.shape[0]
                 if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > indexlen:
@@ -287,27 +264,21 @@ class Pt_sdf_img(threading.Thread):
                 if indexlen != surf_pnts.shape[0]:
                     surf_choice = indx[surf_choice]
                 pnts = np.concatenate([pnts, surf_pnts[surf_choice, :]], axis=0)
-                ivts = np.concatenate([ivts, surf_ivts[surf_choice, :]], axis=0)
-                if self.FLAGS.edgeweight != 1.0:
-                    onedge = np.concatenate([onedge, surf_onedge[surf_choice]], axis=0)
+                gvfs = np.concatenate([gvfs, surf_gvfs[surf_choice, :]], axis=0)
             batch_pnts[cnt, ...] = pnts
-            batch_ivts[cnt, ...] = ivts
+            batch_gvfs[cnt, ...] = gvfs
             batch_norm_params[cnt, ...] = norm_params
             batch_img[cnt, ...] = img.astype(np.float32)
             batch_obj_rot_mat[cnt, ...] = obj_rot_mat
             batch_trans_mat[cnt, ...] = trans_mat
-            if self.FLAGS.edgeweight != 1.0:
-                batch_onedge[cnt, ...] = np.expand_dims(onedge, axis=1)
             batch_cat_id.append(cat_id)
             batch_obj_nm.append(obj)
             batch_view_id.append(num)
             cnt += 1
-        batch_data = {'pnts': batch_pnts, 'ivts':batch_ivts,\
+        batch_data = {'pnts': batch_pnts, 'gvfs':batch_gvfs,\
                     'norm_params': batch_norm_params, 'imgs': batch_img,
                     'obj_rot_mats': batch_obj_rot_mat, 'trans_mats': batch_trans_mat, \
                     'cat_id': batch_cat_id, 'obj_nm': batch_obj_nm,  'view_id': batch_view_id}
-        if self.FLAGS.edgeweight != 1.0:
-            batch_data["onedge"] = batch_onedge
         return batch_data
 
     def refill_data_order(self):

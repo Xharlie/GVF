@@ -9,6 +9,8 @@ import sys
 import h5py
 import copy
 import trimesh
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../data_util'))
+import data_util
 
 FETCH_BATCH_SIZE = 32
 BATCH_SIZE = 32
@@ -18,15 +20,6 @@ POINTCLOUDSIZE = 16384
 OUTPUTPOINTS = 1024
 REEBSIZE = 1024
 
-
-def get_filelist(lst_dir, maxnverts, minsurbinvox, cats, cats_info, type):
-    for cat in cats:
-        cat_id = cats_info[cat]
-    inputlistfile = os.path.join(lst_dir, cat_id + type + ".lst")
-    with open(inputlistfile, 'r') as f:
-        lines = f.read().splitlines()
-        file_lst = [[cat_id, line.strip()] for line in lines]
-    return file_lst
 
 class Pt_sdf_img(threading.Thread):
     
@@ -51,6 +44,7 @@ class Pt_sdf_img(threading.Thread):
         self.cats_limit, self.epoch_amount = self.set_cat_limit(cats_limit)
         self.data_order = list(range(len(listinfo)))
         self.order = self.data_order
+        print("filename",FLAGS.filename)
 
     def set_cat_limit(self, cats_limit):
         epoch_amount = 0
@@ -68,6 +62,9 @@ class Pt_sdf_img(threading.Thread):
 
     def get_ivt_h5_filenm(self, cat_id, obj, view_id):
         return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.h5".format(self.FLAGS.filename)), os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
+
+    def get_gvf_init_filenm(self, cat_id, obj, view_id):
+        return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.ply".format(self.FLAGS.filename)), os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
 
     def get_obj_file_filenm(self, cat_id, obj):
         return os.path.join(self.norm_mesh_dir, cat_id, obj, "pc_norm.obj")
@@ -112,11 +109,14 @@ class Pt_sdf_img(threading.Thread):
         locs, norms, dists, gt_pnts =None,None,None,None
         cat_id, obj, num = self.listinfo[index]
         if self.FLAGS.filename is not None:
-            ivt_file, pntfile = self.get_ivt_h5_filenm(cat_id, obj, str(num))
-            locs, norms, dists = self.get_ivt_h5(ivt_file)
-            gt_pnts = np.loadtxt(pntfile)
+            # print("self.FLAGS.filename",self.FLAGS.filename)
+            # ivt_file, pntfile = self.get_ivt_h5_filenm(cat_id, obj, str(num))
+            # locs, norms, dists = self.get_ivt_h5(ivt_file)
+            gvf_file, pntfile = self.get_gvf_init_filenm(cat_id, obj, str(num))
+            locs, norms, dists = data_util.read_pcnorm_ply(gvf_file)
+            gt_pnts = np.loadtxt(pntfile, delimiter=";")
         else:
-            obj_file = self.get_obj_file_filenm(cat_id, obj, str(num))
+            obj_file = self.get_obj_file_filenm(cat_id, obj)
             gt_pnts = self.get_gt_pnts(obj_file)
         img_dir, img_file_lst = self.get_img_dir(cat_id, obj)
         return locs, norms, dists, img_dir, img_file_lst, cat_id, obj, num, gt_pnts
@@ -260,8 +260,7 @@ class Pt_sdf_img(threading.Thread):
             batch_data['locs'] = np.array(batch_locs)
             batch_data['norms'] = np.array(batch_norms)
             batch_data['dists'] = np.array(batch_dists)
-        else:
-            batch_data["gt_pnts"] = batch_gt_pnts
+        batch_data["gt_pnts"] = batch_gt_pnts
         return batch_data
 
     def refill_data_order(self):

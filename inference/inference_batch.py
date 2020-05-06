@@ -12,11 +12,10 @@ print(os.path.join(BASE_DIR, 'models'))
 sys.path.append(BASE_DIR)  # model
 sys.path.append(os.path.join(BASE_DIR, 'models'))
 sys.path.append(os.path.join(BASE_DIR, 'utils'))
-sys.path.append(os.path.join(BASE_DIR, 'data_load'))
+sys.path.append(os.path.join(BASE_DIR, 'data'))
 sys.path.append(os.path.join(BASE_DIR, 'preprocessing'))
 import data_util
-import model_normalization as model
-import data_inf_gvf_ply_queue as data_gvf_h5_queue # as data
+import data_inf_gvf_ply_queue as data_inf_gvf_ply_queue # as data
 import create_file_lst
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
 import cal_field
@@ -97,9 +96,9 @@ def gt_test(info, cats_limit):
         elif FLAGS.unitype == "ball":
             grid = np.array([get_ballgrid(FLAGS.anglenums)])
         nums = grid.shape[1] if FLAGS.unionly else FLAGS.initnums
-        TEST_LISTINFO = get_list(cats_limit, "surf_0.h5")
+        TEST_LISTINFO = get_list(cats_limit, "surf_0.ply")
         FLAGS.filename = None
-        TEST_DATASET = data_gvf_h5_queue.Pt_sdf_img(FLAGS, listinfo=TEST_LISTINFO, info=info, cats_limit=cats_limit, shuffle=False)
+        TEST_DATASET = data_inf_gvf_ply_queue.Pt_sdf_img(FLAGS, listinfo=TEST_LISTINFO, info=info, cats_limit=cats_limit, shuffle=False)
         TEST_DATASET.start()
         test_uni_epoch(grid, TEST_DATASET, nums)
         TEST_DATASET.shutdown()
@@ -110,16 +109,16 @@ def gt_test(info, cats_limit):
 
     for i in range(FLAGS.start_round, FLAGS.rounds):
         print("################ rounds,", str(i))
-        if FLAGS.rounds > 2 and i == (FLAGS.rounds - 2):
-            weightform = "even"
-            num_ratio = 1
-        else:
-            num_ratio = FLAGS.num_ratio
+        # if FLAGS.rounds > 2 and i == (FLAGS.rounds - 2):
+        #     weightform = "even"
+        #     num_ratio = 1
+        # else:
+        num_ratio = FLAGS.num_ratio
         nums = nums * num_ratio
         FLAGS.filename = "surf_{}".format(i)
-        TEST_LISTINFO = get_list(cats_limit, "surf_{}.h5".format(i+1))
+        TEST_LISTINFO = get_list(cats_limit, "surf_{}.ply".format(i+1))
         FLAGS.surf_num = nums
-        TEST_DATASET = data_gvf_h5_queue.Pt_sdf_img(FLAGS, listinfo=TEST_LISTINFO, info=info, cats_limit=cats_limit, shuffle=False)
+        TEST_DATASET = data_inf_gvf_ply_queue.Pt_sdf_img(FLAGS, listinfo=TEST_LISTINFO, info=info, cats_limit=cats_limit, shuffle=False)
         TEST_DATASET.start()
         test_near_epoch(TEST_DATASET, nums, FLAGS.stdratio, FLAGS.stdlwb[i], FLAGS.stdupb[i], weightform, i)
         TEST_DATASET.shutdown()
@@ -128,6 +127,7 @@ def gt_test(info, cats_limit):
 
 
 def test_uni_epoch(grid, TEST_DATASET, nums):
+    print("len(TEST_DATASET)",len(TEST_DATASET))
     num_batches = int(np.ceil(len(TEST_DATASET) / FLAGS.batch_size))
     for batch_idx in range(num_batches):
         tic=time.time()
@@ -136,7 +136,7 @@ def test_uni_epoch(grid, TEST_DATASET, nums):
             locs, norms, dists = unisample_pnts(batch_data, grid, nums, threshold=FLAGS.uni_thresh)
         elif FLAGS.unitype == "ball":
             locs, norms, dists = ballsample_pnts(batch_data, grid, nums)
-        save_txt(batch_data, batch_data['gt_pnt'])
+        save_txt(batch_data, batch_data['gt_pnts'])
         save_data_ply(batch_data, locs, norms, dists, FLAGS.unitype)
         save_data_ply(batch_data, locs, norms, dists, "surf_{}".format(0), num_limit=FLAGS.initnums*4)
         print(' -----rounds %d, %d points ------ %d/%d ' % (-1, locs.shape[1], batch_idx+1, num_batches))
@@ -160,7 +160,8 @@ def test_near_epoch(TEST_DATASET, nums, stdratio, stdlwb, stdupb, weightform, ro
         batch_data['locs'] = pcs
         locs, norms, dists = nearsample_pnts(batch_data)
         # np.savetxt(os.path.join(outdir, "surf_samp{}.txt".format(i)), pc, delimiter=";")
-        save_data_h5(batch_data, locs, norms, dists, "surf_{}".format(round+1))
+        # save_data_h5(batch_data, locs, norms, dists, "surf_{}".format(round+1))
+        save_data_ply(batch_data, locs, norms, dists, "surf_{}".format(round+1)) #, num_limit=FLAGS.initnums*4)
         print(' -----rounds %d, %d points ------ %d/%d' % (round, batch_data['locs'].shape[1], batch_idx+1, num_batches))
         print( ' time per batch: %.02f, ' % (time.time() - tic))
     print("sess closed !!!!!!!!!!!!!")
@@ -170,12 +171,14 @@ def unisample_pnts(batch_data, unigrid, nums, threshold=0.1):
         inds = np.random.choice(unigrid.shape[1], (unigrid.shape[0], nums))
         unigrid = unigrid[inds]
     gt_nodes = batch_data["gt_pnts"][0]
+    print("unigrid[0].shape, gt_nodes.shape",unigrid[0].shape, gt_nodes.shape)
     gvfs = cal_field.cal_field(unigrid[0], gt_nodes)
     drcts = -data_util.normalize_norm(gvfs, 1)
-    dist = np.linalg.norm(gvfs, axis=2)
+    dist = np.linalg.norm(gvfs, axis=1)
     ind = dist <= threshold
     drcts = drcts[ind]
-    locs = unigrid[ind] + gvfs[ind]
+    # print("gt_nodes.shape, gvfs.shape, drcts.shape, dist.shape", gt_nodes.shape, gvfs.shape, drcts.shape, dist.shape)
+    locs = unigrid[0][ind] + gvfs[ind]
     return np.array([locs]), np.array([drcts]), np.array([dist[ind]])
 
 
@@ -230,7 +233,7 @@ def save_data_ply(batch_data, locs, norms, dists, name, num_limit=None):
         outdir = os.path.join(FLAGS.outdir, batch_data["cat_id"][i], batch_data["obj_nm"][i], str(view_id), FLAGS.unitype)
         os.makedirs(outdir, exist_ok=True)
         plyfile = os.path.join(outdir, "{}.ply".format(name))
-        data_util.save_pcnorm_to_ply(locs[i], norms[i], plyfile)
+        data_util.save_pcnorm_to_ply(locs[i], norms[i], dists[i], plyfile)
         print("saved in: ", plyfile)
 
 def save_txt(batch_data, gt_pnt):
@@ -239,7 +242,7 @@ def save_txt(batch_data, gt_pnt):
         outdir = os.path.join(FLAGS.outdir, batch_data["cat_id"][i], batch_data["obj_nm"][i], str(view_id), FLAGS.unitype)
         os.makedirs(outdir, exist_ok=True)
         txtfile = os.path.join(outdir, "gt_pnt.txt")
-        np.savetxt(txtfile, gt_pnt[i])
+        np.savetxt(txtfile, gt_pnt[i], delimiter=";")
         print("saved in: ", txtfile)
 
 def rectify(norm, right_drct):
@@ -335,7 +338,8 @@ def get_ballgrid(angles_num):
 
 def cal_std(dists, stdratio, stdlwb=0.0, stdupb=0.1):
     print("stdupb, stdlwb", stdupb, stdlwb)
-    stds = np.minimum(stdupb, np.maximum(np.minimum(stdlwb, dists), dists / stdratio))
+    # stds = np.minimum(stdupb, np.maximum(np.minimum(stdlwb, dists), dists / stdratio))
+    stds = np.minimum(stdupb, np.maximum(stdlwb, dists / stdratio))
     return stds
 
 
@@ -434,30 +438,35 @@ def z_norm_matrix(norm):
 
 def nearsample_pnts(batch_data):
     gt_nodes = batch_data["gt_pnts"][0]
+    print("batch_data[locs][0].shape, gt_nodes.shape",batch_data["locs"][0].shape, gt_nodes.shape)
     gvfs = cal_field.cal_field(batch_data["locs"][0], gt_nodes)
     norm = -data_util.normalize_norm(gvfs, 1)
-    surface_place = batch_data["locs"] + gvfs
-    dist = np.linalg.norm(gvfs, axis=2)
-    return surface_place, np.array([norm]), dist
+    surface_place = batch_data["locs"][0] + gvfs
+    dist = np.linalg.norm(gvfs, axis=1)
+    return np.array([surface_place]), np.array([norm]), np.array([dist])
 
 def get_list(cats_limit, filename):
-    TEST_LISTINFO = []
-    for cat_id in cat_ids:
-        test_lst = os.path.join(FLAGS.test_lst_dir, cat_id + "_{}.lst".format(FLAGS.set))
-        with open(test_lst, 'r') as f:
-            lines = f.read().splitlines()
-            for line in lines:
-                obj = line.strip()
-                for render in range(FLAGS.view_num):
-                    if FLAGS.skipexist and os.path.exists(
-                            os.path.join(FLAGS.outdir, cat_id, obj, str(render), FLAGS.unitype, filename)):
-                        continue
-                    cats_limit[cat_id] += 1
-                    TEST_LISTINFO += [(cat_id, obj, render)]
+    # TEST_LISTINFO = []
+    # for cat_id in cat_ids:
+    #     test_lst = os.path.join(FLAGS.test_lst_dir, cat_id + "_{}.lst".format(FLAGS.set))
+    #     with open(test_lst, 'r') as f:
+    #         lines = f.read().splitlines()
+    #         for line in lines:
+    #             obj = line.strip()
+    #             for render in range(FLAGS.view_num):
+    #                 if FLAGS.skipexist and os.path.exists(
+    #                         os.path.join(FLAGS.outdir, cat_id, obj, str(render), FLAGS.unitype, filename)):
+    #                     continue
+    #                 cats_limit[cat_id] += 1
+    #                 TEST_LISTINFO += [(cat_id, obj, render)]
+    TEST_LISTINFO = [("03001627", "17e916fc863540ee3def89b32cef8e45", 11)]
+    cats_limit["03001627"]=1
+    # TEST_LISTINFO += [("03001627", "1be38f2624022098f71e06115e9c3b3e", 0)]
+    # TEST_LISTINFO += [("02691156", "1beb0776148870d4c511571426f8b16d", 0)]
     return TEST_LISTINFO
 
 if __name__ == "__main__":
-    # nohup python -u inference_batch.py --gpu 0 --img_feat_onestream --category chair  --restore_model ../train/checkpoint/onestream_small_grid/chair_vgg_16_010000 --restore_surfmodel ../train/checkpoint/onestream_small_drct_surf_nonmani/chair_vgg_16_110000 --outdir  inf_new --unionly --unitype uni --start_round 0 --distr ball --set test --view_num 8 --skipexist &> global_direct_chair_surf_evenweight_uni.log &
+    # nohup python -u inference_batch.py --gpu 0 --img_feat_onestream --category chair  --outdir  inf_new --unionly --unitype uni --start_round -1 --distr ball --set test --view_num 1 --initnums 100000 --num_ratio 1 --uni_thresh 0.03 --stdupb 0.0 0.0 0.1 0.0 0.0 --stdlwb 0.0 0.0 0.05 0.0 0.0 &> global_direct_chair_surf_evenweight_uni.log &
 
 
     # nohup python -u inference_batch.py --gpu 1 --img_feat_onestream --category chair  --restore_model ../train/checkpoint/onestream_small_grid/chair_vgg_16_010000 --restore_surfmodel ../train/checkpoint/onestream_small_drct_surf_nonmani/chair_vgg_16_110000 --outdir  inf_new_train --unionly --unitype uni --start_round 0 --distr ball --set train --view_num 4 --skipexist &> train_chair_surf_evenweight_uni.log &
@@ -513,14 +522,14 @@ if __name__ == "__main__":
     parser.add_argument('--max_epoch', type=int, default=10, help='angle resolution')
     parser.add_argument('--initnums', type=int, default=8096, help='initial sampled uni point numbers')
     parser.add_argument('--num_ratio', type=int, default=2, help='point numbers expansion each round')
-    parser.add_argument('--stdratio', type=int, default=4, help='')
+    parser.add_argument('--stdratio', type=int, default=2, help='')
     parser.add_argument('--stdupb', nargs='+', action='store', default=[0.1, 0.1, 0.03, 0.01, 0])
     parser.add_argument('--stdlwb', nargs='+', action='store', default=[0.08, 0.04, 0.003, 0.001, 0])
     # parser.add_argument('--stdupb', nargs='+', action='append', default=[0, 0])
     # parser.add_argument('--stdlwb', nargs='+', action='append', default=[0, 0])
     parser.add_argument('--distr', type=str, default="0.1", help='local points sampling: gaussian or ball')
     parser.add_argument('--weightform', type=str, default="even", help='GMM weight: even or reverse')
-    parser.add_argument('--gridsize', type=float, default=0.02, help='GMM weight: even or reverse')
+    parser.add_argument('--gridsize', type=float, default=0.01, help='GMM weight: even or reverse')
     parser.add_argument('--outdir', type=str, default="./", help='out_dir')
     parser.add_argument('--unitype', type=str, default="ball", help='out_dir')
     parser.add_argument('--unionly', action='store_true')
@@ -569,7 +578,7 @@ if __name__ == "__main__":
     RESULT_PATH = os.path.join(FLAGS.log_dir, 'test_results')
     if not os.path.exists(RESULT_PATH): os.mkdir(RESULT_PATH)
 
-    os.system('cp %s.py %s' % (os.path.splitext(model.__file__)[0], FLAGS.log_dir))
+    # os.system('cp %s.py %s' % (os.path.splitext(model.__file__)[0], FLAGS.log_dir))
     os.system('cp inference.py %s' % (FLAGS.log_dir))
     LOG_FOUT = open(os.path.join(FLAGS.log_dir, 'log_test.txt'), 'w')
     LOG_FOUT.write(str(FLAGS) + '\n')
@@ -592,12 +601,11 @@ if __name__ == "__main__":
         cat_ids.append(cats[FLAGS.category])
         cats_limit[cats[FLAGS.category]] = 0
 
-    # TEST_LISTINFO += [("03001627", "17e916fc863540ee3def89b32cef8e45", 11)]
-    # TEST_LISTINFO += [("03001627", "1be38f2624022098f71e06115e9c3b3e", 0)]
-    # TEST_LISTINFO += [("02691156", "1beb0776148870d4c511571426f8b16d", 0)]
+
 
     info = {'rendered_dir': raw_dirs["renderedh5_dir"],
-            'ivt_dir': FLAGS.outdir}
+            'ivt_dir': FLAGS.outdir,
+            'norm_mesh_dir':raw_dirs["norm_mesh_dir"]}
     if FLAGS.cam_est:
         info['rendered_dir'] = raw_dirs["renderedh5_dir_est"]
 
