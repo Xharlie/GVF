@@ -5,3 +5,5 @@
 *.txt
 preprocessing/test
 *__pycache__*
+*.ckpt
+
