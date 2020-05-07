@@ -470,10 +470,10 @@ def train_one_epoch(sess, ops, epoch):
                 cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
             cv2.imwrite(os.path.join(RESULT_PATH, '%d_img_pnts_%d.png' % (batch_idx,epoch)), saveimg)
 
-            np.savetxt(os.path.join(RESULT_PATH, '%d_input_pnts_%d.txt' % (batch_idx,epoch)), gt_rot_pnts_val[bid, :, :], delimiter=';')
-
-            np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_pred_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
-            np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_gt_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :], np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
+            # np.savetxt(os.path.join(RESULT_PATH, '%d_input_pnts_%d.txt' % (batch_idx,epoch)), gt_rot_pnts_val[bid, :, :], delimiter=';')
+            #
+            # np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_pred_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
+            # np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_gt_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :], np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
 
     print("avg xyz_avg_diff:", xyz_avg_diff_epoch / num_batches)
     print("avg locnorm_avg_diff:", locnorm_avg_diff_epoch / num_batches)
@@ -613,7 +613,7 @@ def test_one_epoch(sess, ops, epoch):
             fetch_time = 0
             log_string(outstr)
 
-        if batch_idx % 100 == 0:
+        if batch_idx % 1000 == 0:
             bid = 0
             saveimg = (imgs_val[bid, :, :, :] * 255).astype(np.uint8)
             samplept_img = sample_img_points_val[bid, ...]
@@ -624,11 +624,9 @@ def test_one_epoch(sess, ops, epoch):
                 y = int(samplept_img[j, 1])
                 cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
             cv2.imwrite(os.path.join(TEST_RESULT_PATH, '%d_img_pnts.png' % (batch_idx)), saveimg)
-
-            np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_input_pnts.txt' % (batch_idx)), gt_rot_pnts_val[bid, :, :], delimiter=';')
-
-            np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_pred.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
-            np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_gt.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :],np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
+            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_input_pnts.txt' % (batch_idx)), gt_rot_pnts_val[bid, :, :], delimiter=';')
+            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_pred.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
+            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_gt.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :],np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
 
     if FLAGS.distlimit is not None:
         print(
