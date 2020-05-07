@@ -1,6 +1,9 @@
 import numpy as np
 from plyfile import PlyData, PlyElement
-
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
+import normal_gen
 
 def normalize_pc(pc):
     centroid = np.mean(pc, axis=0)
@@ -39,3 +42,17 @@ def read_pcnorm_ply(file):
 def normalize_norm(batch_data, norm):
     divide = np.linalg.norm(batch_data, axis=1, keepdims=True) * norm
     return batch_data/divide
+
+
+def add_normal_jitters(points, normals, height=0.1, span=0.05):
+    jitterx = np.random.uniform(-height, height, points.shape[0]).reshape([points.shape[0], 1])
+    R = normal_gen.norm_z_matrix(normals, rect=False)
+    round_points = np.matmul(R, np.expand_dims(round_sample(span, points.shape[0]), axis=2))
+    # print("jitterx.shape, R.shape, round_points.shape", jitterx.shape, R.shape, round_points.shape)
+    jitterx = np.multiply(jitterx, normals) + np.squeeze(round_points)
+    return points + jitterx
+
+def round_sample(radius, num):
+    angle = np.random.uniform(0,1, size=num) * 2 * np.pi
+    r = np.sqrt(np.random.uniform(0,1, size=num)) * radius
+    return np.stack([np.multiply(r, np.cos(angle)), np.multiply(r, np.sin(angle)), np.zeros_like(r)], axis=1)

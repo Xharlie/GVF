@@ -8,7 +8,6 @@ from scipy.interpolate import RegularGridInterpolator
 import time
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
-import points_tries_dist_pycuda as ptdcuda
 import argparse
 import pymesh
 import trimesh
@@ -30,9 +29,9 @@ FLAGS=None
 def norm_z_matrix(norm, rect=True):
     bs = norm.shape[0]
     z_b = np.repeat(np.array([(0., 0., 1.)]), bs, axis=0)
-    print("norm.shape, z_b.shape",norm.shape, z_b.shape)
+    # print("norm.shape, z_b.shape",norm.shape, z_b.shape)
     normal = np.cross(norm, z_b) if rect else np.cross(z_b, norm)
-    print("normal of norm rotate:", normal.shape)
+    # print("normal of norm rotate:", normal.shape)
     sinal = np.linalg.norm(normal,axis=1,keepdims=True)
     cosal = np.sum(np.multiply(norm, z_b),axis=1,keepdims=True)
     # sinalsqrrev = 1/np.square(np.maximum(1e-5, sinal))

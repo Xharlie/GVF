@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 import random
 import math
 import os
@@ -8,6 +7,12 @@ import queue
 import sys
 import h5py
 import copy
+import trimesh
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../utils'))
+import cal_field
+import data_util
+import time
 
 FETCH_BATCH_SIZE = 32
 BATCH_SIZE = 32
@@ -35,10 +40,8 @@ class Pt_sdf_img(threading.Thread):
         self.stopped = False
         self.bno = 0
         self.listinfo = listinfo
-        # self.num_uni_pnts = FLAGS.num_uni_pnts
-        # self.num_surf_pnts = FLAGS.num_surf_pnts
-        # self.batch_size = FLAGS.batch_size
         self.img_dir = info['rendered_dir']
+        self.mesh_dir = info['norm_mesh_dir']
         self.gvf_dir = info['gvf_dir']
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 60000
@@ -49,6 +52,8 @@ class Pt_sdf_img(threading.Thread):
         self.cats_limit, self.epoch_amount = self.set_cat_limit(cats_limit)
         self.data_order = list(range(len(listinfo)))
         self.order = self.data_order
+        self.surf_num = self.FLAGS.num_pnts - self.FLAGS.uni_num
+        self.unigrid = self.get_unigrid(FLAGS.res)
 
     def set_cat_limit(self, cats_limit):
         epoch_amount = 0
@@ -103,37 +108,70 @@ class Pt_sdf_img(threading.Thread):
             ret['used'] = int(ret['total']) - int(ret['free'])
         return ret
 
-    def getitem(self, index):
-        cat_id, obj, num = self.listinfo[index]
-        gvf_file = self.get_gvf_h5_filenm(cat_id, obj)
-        if self.FLAGS.source == "fly":
-            
-        else:
-            uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, uni_onedge, surf_onedge, sphere_onedge, norm_params = self.get_gvf_h5(gvf_file, cat_id, obj)
 
+
+    def get_unigrid(self, res):
+        half_grid_size = 1.0 / self.FLAGS.res
+        x = np.linspace(-1.0+half_grid_size, 1.0-half_grid_size, num=res).astype(np.float32)
+        y = np.linspace(-1.0+half_grid_size, 1.0-half_grid_size, num=res).astype(np.float32)
+        z = np.linspace(-1.0+half_grid_size, 1.0-half_grid_size, num=res).astype(np.float32)
+        xv, yv, zv = np.meshgrid(x,y,z, indexing='ij')
+        print("get unigrid xv.shape ", xv.shape)
+        return np.stack([xv.reshape(-1), yv.reshape(-1), zv.reshape(-1)], axis=1)
+
+
+    def gvf_otf(self, gt_pnts, gt_pnt_normals):
+        pnts = np.zeros((0,3))
+        if self.FLAGS.uni_num > 0:
+            half_grid_size = 1.0 / self.FLAGS.res
+            uni_choice = np.asarray(random.sample(range(self.FLAGS.res**3), self.FLAGS.uni_num), dtype=np.int32)
+            uni_pnts = self.unigrid[uni_choice] + np.random.uniform(-half_grid_size, half_grid_size, size=self.FLAGS.uni_num*3).reshape(-1,3)
+            pnts = np.concatenate([pnts, uni_pnts], axis=0)
+        if self.surf_num > 0:
+            surf_choice = np.asarray(random.sample(range(gt_pnts.shape[0]), self.surf_num), dtype=np.int32)
+            points = gt_pnts[surf_choice]
+            normals = gt_pnt_normals[surf_choice]
+            surf_pnts = data_util.add_normal_jitters(points, normals, height=0.1, span=0.05)
+            pnts = np.concatenate([pnts, surf_pnts], axis=0)
+        gvfs = cal_field.cal_field(pnts, gt_pnts, gpu=2)
+        return pnts, gvfs
+
+
+    def get_gt_pnts(self, mesh_dir, cat_id, obj):
+        obj_file = os.path.join(mesh_dir, cat_id, obj, "pc_norm.obj")
+        mesh = trimesh.load_mesh(obj_file)
+        # nodes, face_index = trimesh.sample.sample_surface_even(mesh, count)
+        # normalize nodes
+        # mesh.vertices = data_util.normalize_pc(mesh.vertices)
+        return mesh.vertices, mesh.vertex_normals
+
+    def getitem(self, index):
+        uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, pnts, gvfs = None, None, None, None, None, None
+        cat_id, obj, num = self.listinfo[index]
+        if self.FLAGS.source == "fly":
+            gt_pnts, gt_pnt_normals = self.get_gt_pnts(self.mesh_dir, cat_id, obj)
+            pnts, gvfs = self.gvf_otf(gt_pnts, gt_pnt_normals)
+        else:
+            gvf_file = self.get_gvf_h5_filenm(cat_id, obj)
+            uni_pnts, surf_pnts, uni_gvfs, surf_gvfs = self.get_gvf_h5(gvf_file, cat_id, obj)
         img_dir, img_file_lst = self.get_img_dir(cat_id, obj)
-        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params, img_dir, img_file_lst, cat_id, obj, num
+        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, pnts, gvfs, img_dir, img_file_lst, cat_id, obj, num
 
     def get_gvf_h5(self, gvf_h5_file, cat_id, obj):
         # print(gvf_h5_file)
-        uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params = None, None, None, None, None
+        uni_pnts, surf_pnts, uni_gvfs, surf_gvfs = None, None, None, None
         try:
             h5_f = h5py.File(gvf_h5_file, 'r')
-            norm_params = h5_f['norm_params'][:].astype(np.float32)
             if self.FLAGS.uni_num >0:
                 if 'uni_pnts' in h5_f.keys() and 'uni_gvfs' in h5_f.keys():
                     uni_pnts = h5_f['uni_pnts'][:].astype(np.float32)
                     uni_gvfs = h5_f['uni_gvfs'][:].astype(np.float32)
-                    if self.FLAGS.edgeweight != 1.0:
-                        uni_onedge = h5_f['uni_onedge'][:].astype(np.float32)
                 else:
                     raise Exception(cat_id, obj, "no uni gvf and sample")
-            if self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num >0:
+            if self.surf_num >0:
                 if ('surf_pnts' in h5_f.keys() and 'surf_gvfs' in h5_f.keys()):
                     surf_pnts = h5_f['surf_pnts'][:].astype(np.float32)
                     surf_gvfs = h5_f['surf_gvfs'][:].astype(np.float32)
-                    if self.FLAGS.edgeweight != 1.0:
-                        surf_onedge = h5_f['surf_onedge'][:].astype(np.float32)
                 else:
                     raise Exception(cat_id, obj, "no surf gvf and sample")
         except:
@@ -141,7 +179,7 @@ class Pt_sdf_img(threading.Thread):
         finally:
             # return uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, uni_onedge, surf_onedge, sphere_onedge, norm_params
             h5_f.close()
-        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params
+        return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs
 
     # def get_img_old(self, img_dir, num, file_lst):
     #     params = np.loadtxt(img_dir + "/rendering_metadata.txt")
@@ -240,34 +278,34 @@ class Pt_sdf_img(threading.Thread):
             single_obj = self.getitem(self.order[i])
             if single_obj == None:
                 raise Exception("single mesh is None!")
-            uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, norm_params, img_dir, img_file_lst, cat_id, obj, num = single_obj
+            uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, pnts, gvfs, img_dir, img_file_lst, cat_id, obj, num = single_obj
             img, trans_mat, obj_rot_mat = self.get_img(img_dir, num)
-            pnts = np.zeros((0, 3))
-            gvfs = np.zeros((0, 3))
-            if self.FLAGS.uni_num > 0:
-                if self.FLAGS.uni_num > uni_pnts.shape[0]:
-                    uni_choice = np.random.randint(uni_pnts.shape[0], size=self.FLAGS.uni_num)
-                else:
-                    uni_choice = np.asarray(random.sample(range(uni_pnts.shape[0]), self.FLAGS.uni_num), dtype=np.int32)
-                pnts = np.concatenate([pnts, uni_pnts[uni_choice, :]],axis=0)
-                gvfs = np.concatenate([gvfs, uni_gvfs[uni_choice, :]],axis=0)
-            if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > 0:
-                indexlen = surf_pnts.shape[0]
-                if self.FLAGS.surfrange[0] > 0.0 or self.FLAGS.surfrange[1] < 0.15:
-                    dist = np.linalg.norm(surf_gvfs, axis=1)
-                    indx = np.argwhere((dist >= self.FLAGS.surfrange[0]) & (dist <= self.FLAGS.surfrange[1])).reshape(-1)
-                    indexlen = indx.shape[0]
-                if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > indexlen:
-                    surf_choice = np.random.randint(indexlen, size=self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num)
-                else:
-                    surf_choice = np.asarray(random.sample(range(indexlen), self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num), dtype=np.int32)
-                if indexlen != surf_pnts.shape[0]:
-                    surf_choice = indx[surf_choice]
-                pnts = np.concatenate([pnts, surf_pnts[surf_choice, :]], axis=0)
-                gvfs = np.concatenate([gvfs, surf_gvfs[surf_choice, :]], axis=0)
+            if pnts is None:
+                pnts = np.zeros((0, 3))
+                gvfs = np.zeros((0, 3))
+                if self.FLAGS.uni_num > 0:
+                    if self.FLAGS.uni_num > uni_pnts.shape[0]:
+                        uni_choice = np.random.randint(uni_pnts.shape[0], size=self.FLAGS.uni_num)
+                    else:
+                        uni_choice = np.asarray(random.sample(range(uni_pnts.shape[0]), self.FLAGS.uni_num), dtype=np.int32)
+                    pnts = np.concatenate([pnts, uni_pnts[uni_choice, :]],axis=0)
+                    gvfs = np.concatenate([gvfs, uni_gvfs[uni_choice, :]],axis=0)
+                if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > 0:
+                    indexlen = surf_pnts.shape[0]
+                    if self.FLAGS.surfrange[0] > 0.0 or self.FLAGS.surfrange[1] < 0.15:
+                        dist = np.linalg.norm(surf_gvfs, axis=1)
+                        indx = np.argwhere((dist >= self.FLAGS.surfrange[0]) & (dist <= self.FLAGS.surfrange[1])).reshape(-1)
+                        indexlen = indx.shape[0]
+                    if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > indexlen:
+                        surf_choice = np.random.randint(indexlen, size=self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num)
+                    else:
+                        surf_choice = np.asarray(random.sample(range(indexlen), self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num), dtype=np.int32)
+                    if indexlen != surf_pnts.shape[0]:
+                        surf_choice = indx[surf_choice]
+                    pnts = np.concatenate([pnts, surf_pnts[surf_choice, :]], axis=0)
+                    gvfs = np.concatenate([gvfs, surf_gvfs[surf_choice, :]], axis=0)
             batch_pnts[cnt, ...] = pnts
             batch_gvfs[cnt, ...] = gvfs
-            batch_norm_params[cnt, ...] = norm_params
             batch_img[cnt, ...] = img.astype(np.float32)
             batch_obj_rot_mat[cnt, ...] = obj_rot_mat
             batch_trans_mat[cnt, ...] = trans_mat
@@ -276,8 +314,7 @@ class Pt_sdf_img(threading.Thread):
             batch_view_id.append(num)
             cnt += 1
         batch_data = {'pnts': batch_pnts, 'gvfs':batch_gvfs,\
-                    'norm_params': batch_norm_params, 'imgs': batch_img,
-                    'obj_rot_mats': batch_obj_rot_mat, 'trans_mats': batch_trans_mat, \
+                    'imgs': batch_img, 'obj_rot_mats': batch_obj_rot_mat, 'trans_mats': batch_trans_mat, \
                     'cat_id': batch_cat_id, 'obj_nm': batch_obj_nm,  'view_id': batch_view_id}
         return batch_data
 

@@ -17,12 +17,12 @@ sys.path.append(os.path.join(BASE_DIR, 'utils'))
 sys.path.append(os.path.join(BASE_DIR, 'data_load'))
 sys.path.append(os.path.join(BASE_DIR, 'preprocessing'))
 import model_normalization as model
-import data_ivt_h5_queue  # as data
+import data_gvf_h5_queue  # as data
 import output_utils
 import create_file_lst
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../preprocessing'))
 from normal_gen import save_norm
-import gpu_create_manifold_ivt as ct
+import gpu_create_manifold_gvf as ct
 import argparse
 import pymesh
 import trimesh
@@ -61,33 +61,33 @@ def get_normalize_mesh(model_dir, norm_mesh_sub_dir, target_dir):
 
 
 
-def get_ivt_h5(ivt_h5_file, cat_id, obj):
-    # print(ivt_h5_file)
-    h5_f = h5py.File(ivt_h5_file, 'r')
-    uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, norm_params = None, None, None, None, None, None, None
+def get_gvf_h5(gvf_h5_file, cat_id, obj):
+    # print(gvf_h5_file)
+    h5_f = h5py.File(gvf_h5_file, 'r')
+    uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, norm_params = None, None, None, None, None, None, None
     try:
         norm_params = h5_f['norm_params'][:].astype(np.float32)
-        if 'uni_pnts' in h5_f.keys() and 'uni_ivts' in h5_f.keys():
+        if 'uni_pnts' in h5_f.keys() and 'uni_gvfs' in h5_f.keys():
             uni_pnts = h5_f['uni_pnts'][:].astype(np.float32)
-            uni_ivts = h5_f['uni_ivts'][:].astype(np.float32)
+            uni_gvfs = h5_f['uni_gvfs'][:].astype(np.float32)
             uni_onedge = h5_f['uni_onedge'][:].astype(np.float32)
         else:
-            raise Exception(cat_id, obj, "no uni ivt and sample")
-        if ('surf_pnts' in h5_f.keys() and 'surf_ivts' in h5_f.keys()):
+            raise Exception(cat_id, obj, "no uni gvf and sample")
+        if ('surf_pnts' in h5_f.keys() and 'surf_gvfs' in h5_f.keys()):
             surf_pnts = h5_f['surf_pnts'][:].astype(np.float32)
-            surf_ivts = h5_f['surf_ivts'][:].astype(np.float32)
+            surf_gvfs = h5_f['surf_gvfs'][:].astype(np.float32)
             surf_onedge = h5_f['surf_onedge'][:].astype(np.float32)
         else:
-            raise Exception(cat_id, obj, "no surf ivt and sample")
-        if ('sphere_pnts' in h5_f.keys() and 'sphere_ivts' in h5_f.keys()):
+            raise Exception(cat_id, obj, "no surf gvf and sample")
+        if ('sphere_pnts' in h5_f.keys() and 'sphere_gvfs' in h5_f.keys()):
             sphere_pnts = h5_f['sphere_pnts'][:].astype(np.float32)
-            sphere_ivts = h5_f['sphere_ivts'][:].astype(np.float32)
+            sphere_gvfs = h5_f['sphere_gvfs'][:].astype(np.float32)
             sphere_onedge = h5_f['sphere_onedge'][:].astype(np.float32)
         else:
-            raise Exception(cat_id, obj, "no uni ivt and sample")
+            raise Exception(cat_id, obj, "no uni gvf and sample")
     finally:
         h5_f.close()
-    return uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, norm_params, uni_onedge, surf_onedge, sphere_onedge
+    return uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, norm_params, uni_onedge, surf_onedge, sphere_onedge
 
 def get_onedge(source, onedge):
     onedgeindex = np.argwhere(onedge > 0.5)[:,0]
@@ -100,40 +100,36 @@ if __name__ == "__main__":
 
     catnm = "chair"
     cat = cats[catnm]
-    obj = "4f42be4dd95e5e0c76e9713f57a5fcb6"
+    obj = "1a7125aefa9af6b6597505fd7d99b613"
     target_dir = "test/check_align"
     os.makedirs(target_dir, exist_ok=True)
 
     model_dir = os.path.join(raw_dirs["mesh_dir"], cat, obj)
     norm_mesh_sub_dir = os.path.join(raw_dirs["real_norm_mesh_dir"], cat, obj)
-    ivf_dir = os.path.join(raw_dirs["ivt_dir"], cat, obj)
+    ivf_dir = os.path.join(raw_dirs["gvf_dir"], cat, obj)
     get_normalize_mesh(model_dir, norm_mesh_sub_dir, target_dir)
 
 
-    ivf_file=os.path.join(ivf_dir, "ivt_sample.h5")
-    uni_pnts, surf_pnts, sphere_pnts, uni_ivts, surf_ivts, sphere_ivts, norm_params, uni_onedge, surf_onedge, sphere_onedge = get_ivt_h5(ivf_file, cat, obj)
+    ivf_file=os.path.join(ivf_dir, "gvf_sample.h5")
+    uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, norm_params, uni_onedge, surf_onedge, sphere_onedge = get_gvf_h5(ivf_file, cat, obj)
 
-    save_norm(uni_pnts, uni_ivts, os.path.join(target_dir, "uni_l.ply"))
-    save_norm(surf_pnts, surf_ivts, os.path.join(target_dir, "surf_l.ply"))
-    save_norm(sphere_pnts, sphere_ivts, os.path.join(target_dir, "sphere_l.ply"))
+    save_norm(uni_pnts, uni_gvfs, os.path.join(target_dir, "uni_l.ply"))
+    save_norm(surf_pnts, surf_gvfs, os.path.join(target_dir, "surf_l.ply"))
 
-    save_norm(uni_pnts+uni_ivts, uni_ivts, os.path.join(target_dir, "uni_s.ply"))
-    save_norm(surf_pnts+surf_ivts, surf_ivts, os.path.join(target_dir, "surf_s.ply"))
-    save_norm(sphere_pnts+sphere_ivts, sphere_ivts, os.path.join(target_dir, "sphere_s.ply"))
+    save_norm(uni_pnts+uni_gvfs, uni_gvfs, os.path.join(target_dir, "uni_s.ply"))
+    save_norm(surf_pnts+surf_gvfs, surf_gvfs, os.path.join(target_dir, "surf_s.ply"))
 
     uni_e_pnts, uni_t_pnts = get_onedge(uni_pnts, uni_onedge)
-    uni_e_ivts, uni_t_ivts = get_onedge(uni_ivts, uni_onedge)
+    uni_e_gvfs, uni_t_gvfs = get_onedge(uni_gvfs, uni_onedge)
     surf_e_pnts, surf_t_pnts = get_onedge(surf_pnts, surf_onedge)
-    surf_e_ivts, surf_t_ivts = get_onedge(surf_ivts, surf_onedge)
+    surf_e_gvfs, surf_t_gvfs = get_onedge(surf_gvfs, surf_onedge)
     sphere_e_pnts, sphere_t_pnts = get_onedge(sphere_pnts, sphere_onedge)
-    sphere_e_ivts, sphere_t_ivts = get_onedge(sphere_ivts, sphere_onedge)
+    sphere_e_gvfs, sphere_t_gvfs = get_onedge(sphere_gvfs, sphere_onedge)
 
-    save_norm(uni_e_pnts, uni_e_ivts, os.path.join(target_dir, "uni_e.ply"))
-    save_norm(surf_e_pnts, surf_e_ivts, os.path.join(target_dir, "surf_e.ply"))
-    save_norm(sphere_e_pnts, sphere_e_ivts, os.path.join(target_dir, "sphere_e.ply"))
+    save_norm(uni_e_pnts, uni_e_gvfs, os.path.join(target_dir, "uni_e.ply"))
+    save_norm(surf_e_pnts, surf_e_gvfs, os.path.join(target_dir, "surf_e.ply"))
 
-    save_norm(uni_t_pnts, uni_t_ivts, os.path.join(target_dir, "uni_t.ply"))
-    save_norm(surf_t_pnts, surf_t_ivts, os.path.join(target_dir, "surf_t.ply"))
-    save_norm(sphere_t_pnts, sphere_t_ivts, os.path.join(target_dir, "sphere_t.ply"))
+    save_norm(uni_t_pnts, uni_t_gvfs, os.path.join(target_dir, "uni_t.ply"))
+    save_norm(surf_t_pnts, surf_t_gvfs, os.path.join(target_dir, "surf_t.ply"))
 
     print("done!")
