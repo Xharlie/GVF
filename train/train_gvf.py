@@ -59,7 +59,7 @@ parser.add_argument('--img_feat_twostream', action='store_true')
 parser.add_argument('--binary', action='store_true')
 parser.add_argument('--alpha', action='store_true')
 parser.add_argument('--act', type=str, default="relu")
-parser.add_argument('--source', type=str, default="fly")
+parser.add_argument('--source', type=str, default="saved")
 parser.add_argument('--edgeweight', type=float, default=1.0)
 parser.add_argument('--rot', action='store_true')
 parser.add_argument('--XYZ', action='store_true')
@@ -96,7 +96,7 @@ os.system('cp train_ivt.py %s' % (FLAGS.log_dir))
 LOG_FOUT = open(os.path.join(FLAGS.log_dir, 'log_train.txt'), 'w')
 LOG_FOUT.write(str(FLAGS)+'\n')
 
-
+os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu
 
 TRAIN_LISTINFO = []
 TEST_LISTINFO = []
@@ -132,7 +132,7 @@ for cat_id in cat_ids:
 
 
 info = {'rendered_dir': raw_dirs["renderedh5_dir"],
-        'gvf_dir': raw_dirs["ivt_mani_dir"] if FLAGS.manifold else raw_dirs["gvf_dir"],
+        'gvf_dir': raw_dirs["gvf_mani_dir"] if FLAGS.manifold else raw_dirs["gvf_dir"],
         'norm_mesh_dir': raw_dirs["norm_mesh_dir"]}
 if FLAGS.cam_est:
     info['rendered_dir']= raw_dirs["renderedh5_dir_est"]
@@ -229,7 +229,6 @@ def load_model(sess, LOAD_MODEL_FILE, prefixs, strict=False):
 
 def train():
     log_string(FLAGS.log_dir)
-    # os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu
     with tf.Graph().as_default():
         with tf.device('/gpu:{}'.format(0)):
             input_pls = model.placeholder_inputs(scope='inputs_pl', FLAGS=FLAGS)
@@ -319,6 +318,7 @@ def train():
                 sys.stdout.flush()
                 if epoch == 0 and FLAGS.restore_model:
                     test_one_epoch(sess, ops, epoch)
+                # test_one_epoch(sess, ops, epoch)
                 xyz_avg_diff, _, _ = train_one_epoch(sess, ops, epoch)
                 if epoch % 5 == 0 and epoch > 1:
                     locnorm_avg_diff, direction_avg_diff = test_one_epoch(sess, ops, epoch)
@@ -327,10 +327,10 @@ def train():
                         best_locnorm_diff = locnorm_avg_diff
                         save_path = saver.save(sess, os.path.join(FLAGS.log_dir, "model.ckpt"))
                         log_string("best locnorm_avg_diff Model saved in file: %s" % save_path)
-                    elif direction_avg_diff < best_dir_diff:
-                        best_dir_diff = direction_avg_diff
-                        save_path = saver.save(sess, os.path.join(FLAGS.log_dir, "dir_model.ckpt"))
-                        log_string("best direction Model saved in file: %s" % save_path)
+                    # elif direction_avg_diff < best_dir_diff:
+                    #     best_dir_diff = direction_avg_diff
+                    #     save_path = saver.save(sess, os.path.join(FLAGS.log_dir, "dir_model.ckpt"))
+                    #     log_string("best direction Model saved in file: %s" % save_path)
                 if epoch % 30 == 0 and epoch > 1:
                     save_path = saver.save(sess, os.path.join(FLAGS.log_dir, "model_epoch_%03d.ckpt"%(epoch)))
                     log_string("Model saved in file: %s" % save_path)
@@ -436,7 +436,7 @@ def train_one_epoch(sess, ops, epoch):
         # # outstr += " gt_ivts_xyz_val =" + str(batch_data['ivts'])
         # log_string(outstr)
                 
-        verbose_freq = 2.
+        verbose_freq = 100.
         if (batch_idx + 1) % verbose_freq == 0:
             bid = 0
             # sampling

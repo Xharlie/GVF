@@ -154,6 +154,7 @@ class Pt_sdf_img(threading.Thread):
         else:
             gvf_file = self.get_gvf_h5_filenm(cat_id, obj)
             uni_pnts, surf_pnts, uni_gvfs, surf_gvfs = self.get_gvf_h5(gvf_file, cat_id, obj)
+            # pnts, gvfs = self.get_gvf_h5_hard(gvf_file, cat_id, obj)
         img_dir, img_file_lst = self.get_img_dir(cat_id, obj)
         return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs, pnts, gvfs, img_dir, img_file_lst, cat_id, obj, num
 
@@ -177,9 +178,37 @@ class Pt_sdf_img(threading.Thread):
         except:
             print("h5py wrong:", gvf_h5_file)
         finally:
-            # return uni_pnts, surf_pnts, sphere_pnts, uni_gvfs, surf_gvfs, sphere_gvfs, uni_onedge, surf_onedge, sphere_onedge, norm_params
             h5_f.close()
         return uni_pnts, surf_pnts, uni_gvfs, surf_gvfs
+
+    def get_gvf_h5_hard(self, gvf_h5_file, cat_id, obj):
+        # print(gvf_h5_file)
+        uni_pnts, surf_pnts, uni_gvfs, surf_gvfs = None, None, None, None
+        h5_f = h5py.File(gvf_h5_file, 'r')
+        pnts = np.zeros((0, 3))
+        gvfs = np.zeros((0, 3))
+        if self.FLAGS.uni_num >0:
+            indexlen = 32768*2
+            if self.FLAGS.uni_num > indexlen:
+                uni_choice = np.random.randint(indexlen, size=self.FLAGS.uni_num)
+            else:
+                uni_choice = np.asarray(random.sample(range(indexlen), self.FLAGS.uni_num), dtype=np.int32)
+            pnts = np.concatenate([pnts, h5_f['uni_pnts'][np.sort(uni_choice), :]], axis=0)
+            gvfs = np.concatenate([gvfs, h5_f['uni_gvfs'][np.sort(uni_choice), :]], axis=0)
+        if self.surf_num >0:
+            indexlen = 32768*3
+            if self.FLAGS.surfrange[0] > 0.0 or self.FLAGS.surfrange[1] < 0.15:
+                dist = np.linalg.norm(surf_gvfs, axis=1)
+                indx = np.argwhere((dist >= self.FLAGS.surfrange[0]) & (dist <= self.FLAGS.surfrange[1])).reshape(
+                    -1)
+                indexlen = indx.shape[0]
+            if self.surf_num > indexlen:
+                surf_choice = np.random.randint(indexlen, size=self.surf_num)
+            else:
+                surf_choice = np.asarray( random.sample(range(indexlen), self.surf_num), dtype=np.int32)
+            pnts = np.concatenate([pnts, h5_f['surf_pnts'][np.sort(surf_choice), :]], axis=0)
+            gvfs = np.concatenate([gvfs, h5_f['surf_gvfs'][np.sort(surf_choice), :]], axis=0)
+        return pnts, gvfs
 
     # def get_img_old(self, img_dir, num, file_lst):
     #     params = np.loadtxt(img_dir + "/rendering_metadata.txt")
@@ -290,16 +319,16 @@ class Pt_sdf_img(threading.Thread):
                         uni_choice = np.asarray(random.sample(range(uni_pnts.shape[0]), self.FLAGS.uni_num), dtype=np.int32)
                     pnts = np.concatenate([pnts, uni_pnts[uni_choice, :]],axis=0)
                     gvfs = np.concatenate([gvfs, uni_gvfs[uni_choice, :]],axis=0)
-                if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > 0:
+                if self.surf_num > 0:
                     indexlen = surf_pnts.shape[0]
                     if self.FLAGS.surfrange[0] > 0.0 or self.FLAGS.surfrange[1] < 0.15:
                         dist = np.linalg.norm(surf_gvfs, axis=1)
                         indx = np.argwhere((dist >= self.FLAGS.surfrange[0]) & (dist <= self.FLAGS.surfrange[1])).reshape(-1)
                         indexlen = indx.shape[0]
-                    if (self.FLAGS.num_pnts - self.FLAGS.uni_num - self.FLAGS.sphere_num) > indexlen:
-                        surf_choice = np.random.randint(indexlen, size=self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num)
+                    if self.surf_num > indexlen:
+                        surf_choice = np.random.randint(indexlen, size=self.surf_num)
                     else:
-                        surf_choice = np.asarray(random.sample(range(indexlen), self.FLAGS.num_pnts-self.FLAGS.uni_num- self.FLAGS.sphere_num), dtype=np.int32)
+                        surf_choice = np.asarray(random.sample(range(indexlen), self.surf_num), dtype=np.int32)
                     if indexlen != surf_pnts.shape[0]:
                         surf_choice = indx[surf_choice]
                     pnts = np.concatenate([pnts, surf_pnts[surf_choice, :]], axis=0)
