@@ -36,7 +36,7 @@
         "norm_mesh_dir":"/hdd_extra1/datasets/ShapeNet/ShapeNetCore_v1_norm/",
         "gvf_dir": "/ssd1/datasets/ShapeNet/gvf/",
         "pnt_dir": "/ssd1/datasets/ShapeNet/pnt_2/",
-        "gvf_mani_dir": "/ssd1/datasets/ShapeNet/gvf_mani/",
+        "gvf_mani_dir": "/ssd1/datasets/ShapeNet/gvf_mani_4/",
         "ref_mani_dir": "/hdd_extra1/datasets/ShapeNet/march_cube_objs_v1/",
         "rendered_dir": "/ssd1/datasets/ShapeNet/ShapeNetRendering/",
         "renderedh5_dir": "/ssd1/datasets/ShapeNet/ShapeNetRenderingh5_v1_all/",

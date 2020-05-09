@@ -187,9 +187,9 @@ def ballsample_pnts(batch_data, ballgrid, nums):
         inds = np.random.choice(ballgrid.shape[1], (ballgrid.shape[0], nums))
         ballgrid = ballgrid[inds]
     batch_data["locs"] = ballgrid
-    ball_ivts, ball_drcts = inference_batch(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE)
-    ball_dist = np.linalg.norm(ball_ivts, axis=2)
-    locs = ballgrid + ball_ivts
+    ball_gvfs, ball_drcts = inference_batch(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE)
+    ball_dist = np.linalg.norm(ball_gvfs, axis=2)
+    locs = ballgrid + ball_gvfs
     return locs, -ball_drcts, ball_dist
 
 
@@ -294,7 +294,7 @@ def inference_batch(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE):
     batch_size = batch_data['locs'].shape[0]
     extra_pts = np.zeros((batch_size, SPLIT_SIZE * num_in_gpu - totalnum, 3), dtype=np.float32)
     batch_points = np.concatenate([batch_data['locs'], extra_pts], axis = 1).reshape((batch_size, SPLIT_SIZE, num_in_gpu, 3))
-    pred_ivt_lst = []
+    pred_gvf_lst = []
     pred_drct_lst = []
     tic = time.time()
     for sp in range(SPLIT_SIZE):
@@ -303,21 +303,21 @@ def inference_batch(sess, ops, roundnum, batch_data, num_in_gpu, SPLIT_SIZE):
                      ops['input_pls']['imgs']: batch_data['imgs'],
                      ops['input_pls']['obj_rot_mats']: batch_data['obj_rot_mats'],
                      ops['input_pls']['trans_mats']: batch_data['trans_mats']}
-        output_list = [ops['end_points']['pred_ivts_xyz'], ops['end_points']['pred_ivts_dist'],
-                       ops['end_points']['pred_ivts_direction'], ops['end_points']['imgs']]
+        output_list = [ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],
+                       ops['end_points']['pred_gvfs_direction'], ops['end_points']['imgs']]
         loss_list = []
         outputs = sess.run(output_list + loss_list, feed_dict=feed_dict)
         pred_xyz_val, pred_dist_val, pred_direction_val, _ = outputs[:]
-        pred_ivt_lst.append(pred_xyz_val)
+        pred_gvf_lst.append(pred_xyz_val)
         pred_drct_lst.append(pred_direction_val)
-    pred_ivts = np.concatenate(pred_ivt_lst, axis=1)
-    print("pred_ivts.shape",pred_ivts.shape)
-    pred_ivts=pred_ivts.reshape(batch_size, -1, 3)[:,:totalnum,:]
+    pred_gvfs = np.concatenate(pred_gvf_lst, axis=1)
+    print("pred_gvfs.shape",pred_gvfs.shape)
+    pred_gvfs=pred_gvfs.reshape(batch_size, -1, 3)[:,:totalnum,:]
     pred_directions = np.concatenate(pred_drct_lst, axis=1).reshape(batch_size, -1, 3)[:,:totalnum,:]
-    return pred_ivts, pred_directions
+    return pred_gvfs, pred_directions
 
-def get_unigrid(ivt_res):
-    grids = int(1 / ivt_res)
+def get_unigrid(gvf_res):
+    grids = int(1 / gvf_res)
     x_ = np.linspace(-1, 1, num=grids).astype(np.float32)
     y_ = np.linspace(-1, 1, num=grids).astype(np.float32)
     z_ = np.linspace(-1, 1, num=grids).astype(np.float32)
@@ -343,11 +343,11 @@ def cal_std(dists, stdratio, stdlwb=0.0, stdupb=0.1):
     return stds
 
 
-def cal_std_loc(pnts, ivts, stdratio, stdlwb=0.0, stdupb=0.1, dist=None):
-    loc = pnts + ivts
-    # print("ivts.shape",ivts.shape)
+def cal_std_loc(pnts, gvfs, stdratio, stdlwb=0.0, stdupb=0.1, dist=None):
+    loc = pnts + gvfs
+    # print("gvfs.shape",gvfs.shape)
     if dist is None:
-        dist = np.linalg.norm(ivts, axis=2)
+        dist = np.linalg.norm(gvfs, axis=2)
     print("stdupb,stdlwb",stdupb,stdlwb)
     std = np.minimum(stdupb, np.maximum(np.minimum(stdlwb, dist), dist / stdratio))
     # print("np.amax(std)",np.amax(std))
@@ -466,7 +466,7 @@ def get_list(cats_limit, filename):
     return TEST_LISTINFO
 
 if __name__ == "__main__":
-    # nohup python -u inference_batch.py --gpu 0 --img_feat_onestream --category chair  --outdir  inf_new --unionly --unitype uni --start_round -1 --distr ball --set test --view_num 1 --initnums 100000 --num_ratio 1 --uni_thresh 0.03 --stdupb 0.0 0.0 0.1 0.0 0.0 --stdlwb 0.0 0.0 0.05 0.0 0.0 &> global_direct_chair_surf_evenweight_uni.log &
+    # nohup python -u inference_batch.py --res 0.005 --gpu 0 --img_feat_onestream --category chair  --outdir  inf_new --unionly --unitype uni --start_round -1 --rounds 10 --distr ball --set test --view_num 1 --initnums 100000 --num_ratio 1 --uni_thresh 0.005 --stdupb 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 --stdlwb 0.05 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 &> global_direct_chair_surf_evenweight_uni.log &
 
 
     # nohup python -u inference_batch.py --gpu 1 --img_feat_onestream --category chair  --restore_model ../train/checkpoint/onestream_small_grid/chair_vgg_16_010000 --restore_surfmodel ../train/checkpoint/onestream_small_drct_surf_nonmani/chair_vgg_16_110000 --outdir  inf_new_train --unionly --unitype uni --start_round 0 --distr ball --set train --view_num 4 --skipexist &> train_chair_surf_evenweight_uni.log &
@@ -557,6 +557,9 @@ if __name__ == "__main__":
     FLAGS.distlimit = [float(i) for i in FLAGS.distlimit]
     FLAGS.surfrange = [float(i) for i in FLAGS.surfrange]
     print(FLAGS)
+    if len(FLAGS.stdupb) != FLAGS.rounds or len(FLAGS.stdlwb) != FLAGS.rounds:
+        print("len(FLAGS.stdupb) {} != FLAGS.rounds  {} or len(FLAGS.stdlwb) {}".format(len(FLAGS.stdupb), FLAGS.rounds, len(FLAGS.stdlwb)))
+        exit()
 
 
 
@@ -604,7 +607,7 @@ if __name__ == "__main__":
 
 
     info = {'rendered_dir': raw_dirs["renderedh5_dir"],
-            'ivt_dir': FLAGS.outdir,
+            'gvf_dir': FLAGS.outdir,
             'norm_mesh_dir':raw_dirs["norm_mesh_dir"]}
     if FLAGS.cam_est:
         info['rendered_dir'] = raw_dirs["renderedh5_dir_est"]

@@ -33,7 +33,7 @@ class Pt_sdf_img(threading.Thread):
         # self.num_surf_pnts = FLAGS.num_surf_pnts
         # self.batch_size = FLAGS.batch_size
         self.img_dir = info['rendered_dir']
-        self.ivt_dir = info['ivt_dir']
+        self.gvf_dir = info['gvf_dir']
         self.norm_mesh_dir = info['norm_mesh_dir']
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 60000
@@ -60,11 +60,11 @@ class Pt_sdf_img(threading.Thread):
         return img_dir, None
 
 
-    def get_ivt_h5_filenm(self, cat_id, obj, view_id):
-        return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.h5".format(self.FLAGS.filename)), os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
+    def get_gvf_h5_filenm(self, cat_id, obj, view_id):
+        return os.path.join(self.gvf_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.h5".format(self.FLAGS.filename)), os.path.join(self.gvf_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
 
     def get_gvf_init_filenm(self, cat_id, obj, view_id):
-        return os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.ply".format(self.FLAGS.filename)), os.path.join(self.ivt_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
+        return os.path.join(self.gvf_dir, cat_id, obj, view_id, self.FLAGS.unitype, "{}.ply".format(self.FLAGS.filename)), os.path.join(self.gvf_dir, cat_id, obj, view_id, self.FLAGS.unitype, "gt_pnt.txt")
 
     def get_obj_file_filenm(self, cat_id, obj):
         return os.path.join(self.norm_mesh_dir, cat_id, obj, "pc_norm.obj")
@@ -110,8 +110,8 @@ class Pt_sdf_img(threading.Thread):
         cat_id, obj, num = self.listinfo[index]
         if self.FLAGS.filename is not None:
             # print("self.FLAGS.filename",self.FLAGS.filename)
-            # ivt_file, pntfile = self.get_ivt_h5_filenm(cat_id, obj, str(num))
-            # locs, norms, dists = self.get_ivt_h5(ivt_file)
+            # gvf_file, pntfile = self.get_gvf_h5_filenm(cat_id, obj, str(num))
+            # locs, norms, dists = self.get_gvf_h5(gvf_file)
             gvf_file, pntfile = self.get_gvf_init_filenm(cat_id, obj, str(num))
             locs, norms, dists = data_util.read_pcnorm_ply(gvf_file)
             gt_pnts = np.loadtxt(pntfile, delimiter=";")
@@ -122,21 +122,26 @@ class Pt_sdf_img(threading.Thread):
         return locs, norms, dists, img_dir, img_file_lst, cat_id, obj, num, gt_pnts
 
     def get_gt_pnts(self, obj_file):
-        mesh = trimesh.load_mesh(obj_file)
-        # nodes, face_index = trimesh.sample.sample_surface_even(mesh, count)
-        # normalize nodes
-        # mesh.vertices = data_util.normalize_pc(mesh.vertices)
-        return mesh.vertices
+        mesh_list = trimesh.load_mesh(obj_file)
+        if not isinstance(mesh_list, list):
+            mesh_list = [mesh_list]
+        points_all = np.zeros((0, 3), dtype=np.float32)
+        for i in range(len(mesh_list)):
+            mesh = mesh_list[i]
+            # print("start sample surface of ", mesh.faces.shape[0])
+            points, index = trimesh.sample.sample_surface(mesh, mesh.faces.shape[0] * 3)
+            points_all = np.concatenate([points_all, points], axis=0)
+        return points_all
 
-    def get_ivt_h5(self, ivt_h5_file):
-        # print(ivt_h5_file)
+    def get_gvf_h5(self, gvf_h5_file):
+        # print(gvf_h5_file)
         try:
-            h5_f = h5py.File(ivt_h5_file, 'r')
+            h5_f = h5py.File(gvf_h5_file, 'r')
             locs = h5_f['locs'][:].astype(np.float32)
             norms = h5_f['norms'][:].astype(np.float32)
             dists = h5_f['dists'][:].astype(np.float32)
         except:
-            print("h5py wrong:", ivt_h5_file)
+            print("h5py wrong:", gvf_h5_file)
             sys.stdout.flush()
         finally:
             h5_f.close()

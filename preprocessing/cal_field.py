@@ -24,9 +24,12 @@ def cal_field(pnts, gt_pnts, gpu=0):
     mod = SourceModule("""
     __device__ float compute_force_scalar(float dist)
     {
-        float dist_expand = dist*100;
-	    return 1/(dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
-	    // return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
+        // float dist_expand = dist*100;
+	    // return 1/(dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
+	    // float dist_expand = dist*1000;
+	    // return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-12);
+	    float dist_expand = dist*1000;
+	    return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-14);
     }
 
     __global__ void p2g(float *gvfs, float *pnts, float *gt_pnts, int pnt_num, int gt_num)
@@ -88,8 +91,8 @@ def fast_cal_field(pnts, gt_pnts, gpu=0):
     __device__ float compute_force_scalar(float dist)
     {
         float dist_expand = dist*100;
-	    return 1/(dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
-	    // return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
+	    # return 1/(dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
+	    return 1/(dist_expand*dist_expand*dist_expand*dist_expand+1E-6);
     }
 
     __global__ void p2g(float *gvf_sums, float *force_sum, float *pnts, float *gt_pnts, int pnt_num, int gt_num)

@@ -475,7 +475,7 @@ if __name__ == "__main__":
                         help='Which single class to generate on [default: all, can be chair or plane, etc.]')
     FLAGS = parser.parse_args()
 
-    # nohup python -u gpu_create_manifold_gvf.py --thread_num 8 --shuffle --category chair &> create_gvf.log &
+    # nohup python -u gpu_create_manifold_gvf.py --thread_num 12 --shuffle --category chair &> create_gvf.log &
     # nohup python -u gpu_create_manifold_gvf.py --thread_num 3 --shuffle --category chair --realmodel &> create_gvf.log &
 
     #  full set
