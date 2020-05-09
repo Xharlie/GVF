@@ -60,10 +60,11 @@ def add_jitters(points, std=0.05, type="uniform"):
 def add_normal_jitters(points, normals, height=0.1, span=0.05):
     jitterx = np.random.uniform(-height, height, points.shape[0]).reshape([points.shape[0],1])
     # jitterx = np.multiply(jitterx, normals) + np.random.uniform(-span, span, 3*points.shape[0]).reshape([points.shape[0],3])
-    R = normal_gen.norm_z_matrix(normals, rect=False)
-    round_points = np.matmul(R, np.expand_dims(round_sample(span,points.shape[0]),axis=2))
-    print("jitterx.shape, R.shape, round_points.shape", jitterx.shape, R.shape, round_points.shape)
-    jitterx = np.multiply(jitterx, normals) + np.squeeze(round_points)
+    if span > 0.0:
+        R = normal_gen.norm_z_matrix(normals, rect=False)
+        round_points = np.matmul(R, np.expand_dims(round_sample(span,points.shape[0]),axis=2))
+        print("jitterx.shape, R.shape, round_points.shape", jitterx.shape, R.shape, round_points.shape)
+        jitterx = np.multiply(jitterx, normals) + np.squeeze(round_points)
     return points + jitterx
 
 def round_sample(radius, num):
@@ -143,7 +144,7 @@ def calculate_gvf_single(planes, e, point, tries):
 
 def create_h5_gvf_pt(gpu, cat_id, h5_file, gt_pnts, face_norms, vert_norms, surfpoints_sample, surfnormals_sample, ungridsamples, norm_params):
     ungridsamples = add_jitters(ungridsamples, std=0.005, type="uniform")
-    surfpoints_sample = add_normal_jitters(surfpoints_sample, surfnormals_sample, height=0.1)
+    surfpoints_sample = add_normal_jitters(surfpoints_sample, surfnormals_sample, height=0.1, span=FLAGS.surfspan)
     all_gvfs = gpu_calculate_gvf(np.concatenate([ungridsamples,surfpoints_sample],axis=0), gt_pnts, gpu)  # (N*8)x4 (x,y,z)
     uni_gvfs, surf_gvfs = all_gvfs[:ungridsamples.shape[0]], all_gvfs[ungridsamples.shape[0]:]  # (N*8)x4 (x,y,z)
     print("uni_gvfs.shape, surf_gvfs.shape", uni_gvfs.shape, surf_gvfs.shape)
@@ -471,11 +472,12 @@ if __name__ == "__main__":
     parser.add_argument('--thread_num', type=int, default='1', help='how many objs are creating at the same time')
     parser.add_argument('--shuffle', action='store_true')
     parser.add_argument('--realmodel', action='store_true')
+    parser.add_argument('--surfspan', type=float, default=0.0)
     parser.add_argument('--category', type=str, default="all",
                         help='Which single class to generate on [default: all, can be chair or plane, etc.]')
     FLAGS = parser.parse_args()
 
-    # nohup python -u gpu_create_manifold_gvf.py --thread_num 12 --shuffle --category chair &> create_gvf.log &
+    # nohup python -u gpu_create_manifold_gvf.py --thread_num 16 --shuffle --category chair --surfspan 0.0 &> create_gvf.log &
     # nohup python -u gpu_create_manifold_gvf.py --thread_num 3 --shuffle --category chair --realmodel &> create_gvf.log &
 
     #  full set

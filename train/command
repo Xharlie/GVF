@@ -10,5 +10,5 @@ nohup python -u train_gvf.py --gpu 0 --img_feat_onestream --encoder vgg_16  --lo
                 nohup python -u train_gvf.py --gpu 1 --img_feat_onestream --encoder vgg_16  --log_dir checkpoint/onestream_small_drct_mani/chair_vgg_16_220000 --category chair --uni_num 1024 --num_pnts 2048 --batch_size 28 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> onestream_small_drct_mani_chair_vgg_220000.log &
 
 
-
-nohup python -u train_gvf.py --gpu 2 --img_feat_onestream --encoder vgg_16  --log_dir checkpoint/onestream_small_drct_surf_mani/chair_vgg_16_220000_16384 --category chair --uni_num 0 --num_pnts 16384 --batch_size 8 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> onestream_small_drct_surf_mani_chair_vgg_220000_16384.log &
+onestream_small_drct_surf_mani4_chair_vgg_220000   2048 pnt/obj
+nohup python -u train_gvf.py --gpu 1 --img_feat_onestream --encoder vgg_16  --log_dir checkpoint/onestream_small_drct_surf_mani4/chair_vgg_16_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 28 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> onestream_small_drct_surf_mani4_chair_vgg_220000.log &
