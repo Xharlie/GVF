@@ -157,6 +157,36 @@ def create_h5_gvf_pt(gpu, cat_id, h5_file, gt_pnts, face_norms, vert_norms, surf
         f1.create_dataset('norm_params', data=norm_params, compression='gzip', compression_opts=4)
 
 
+# def get_mesh(norm_mesh_sub_dir, ref_sub_dir, pnt_dir):
+#     ref_file = os.path.join(ref_sub_dir, "isosurf.obj")
+#     from_marchingcube = False
+#     if os.path.exists(ref_file):
+#         from_marchingcube = True
+#     obj_file = os.path.join(norm_mesh_sub_dir, "pc_norm.obj")
+#     print("trimesh_load:", obj_file)
+#     mesh_list = trimesh.load_mesh(obj_file, process=False)
+#     if not isinstance(mesh_list, list):
+#         mesh_list = [mesh_list]
+#     points_all=np.zeros((0,3), dtype=np.float32)
+#     all_face_normals = np.zeros((0, 3), dtype=np.float32)
+#     all_vert_normals = np.zeros((0, 3, 3), dtype=np.float32)
+#     all_tries = np.zeros((0, 3, 3), dtype=np.float32)
+#     sample_indices = np.zeros((0), dtype=np.int)
+#     for i in range(len(mesh_list)):
+#         mesh = mesh_list[i]
+#         # print("start sample surface of ", mesh.faces.shape[0])
+#         points, index = trimesh.sample.sample_surface(mesh, mesh.faces.shape[0] * 3)
+#         sample_indices = np.concatenate([sample_indices, sample_indices.shape[0] + index], axis=0)
+#         vert_ind = mesh.faces.reshape(-1)
+#         all_tries = np.concatenate([all_tries, mesh.vertices[vert_ind].reshape([-1, 3, 3])], axis=0)
+#         all_face_normals = np.concatenate([all_face_normals, mesh.face_normals], axis=0)
+#         all_vert_normals = np.concatenate([all_vert_normals, mesh.vertex_normals[vert_ind].reshape([-1, 3, 3])], axis=0)
+#         # print("end sample surface")
+#         points_all = np.concatenate([points_all,points], axis=0)
+#     face_norm_surfpnt = save_surface(sample_indices, points_all, all_tries, all_face_normals, all_vert_normals, pnt_dir)
+#     return all_tries, all_face_normals, all_vert_normals, points_all, face_norm_surfpnt, from_marchingcube
+
+
 def get_mesh(norm_mesh_sub_dir, ref_sub_dir, pnt_dir):
     ref_file = os.path.join(ref_sub_dir, "isosurf.obj")
     from_marchingcube = False
@@ -165,8 +195,18 @@ def get_mesh(norm_mesh_sub_dir, ref_sub_dir, pnt_dir):
     obj_file = os.path.join(norm_mesh_sub_dir, "pc_norm.obj")
     print("trimesh_load:", obj_file)
     mesh_list = trimesh.load_mesh(obj_file, process=False)
+    verts_area = 121268
     if not isinstance(mesh_list, list):
         mesh_list = [mesh_list]
+    area_sum = 0
+    area_lst = []
+    for idx, mesh in enumerate(mesh_list):
+        area = np.sum(mesh.area_faces)
+        area_lst.append(area)
+        area_sum += area
+    area_lst = np.asarray(area_lst)
+    amount_lst = (area_lst * verts_area).astype(np.int32)
+
     points_all=np.zeros((0,3), dtype=np.float32)
     all_face_normals = np.zeros((0, 3), dtype=np.float32)
     all_vert_normals = np.zeros((0, 3, 3), dtype=np.float32)
@@ -175,7 +215,7 @@ def get_mesh(norm_mesh_sub_dir, ref_sub_dir, pnt_dir):
     for i in range(len(mesh_list)):
         mesh = mesh_list[i]
         # print("start sample surface of ", mesh.faces.shape[0])
-        points, index = trimesh.sample.sample_surface(mesh, mesh.faces.shape[0] * 3)
+        points, index = trimesh.sample.sample_surface(mesh, amount_lst[i])
         sample_indices = np.concatenate([sample_indices, sample_indices.shape[0] + index], axis=0)
         vert_ind = mesh.faces.reshape(-1)
         all_tries = np.concatenate([all_tries, mesh.vertices[vert_ind].reshape([-1, 3, 3])], axis=0)
@@ -185,6 +225,11 @@ def get_mesh(norm_mesh_sub_dir, ref_sub_dir, pnt_dir):
         points_all = np.concatenate([points_all,points], axis=0)
     face_norm_surfpnt = save_surface(sample_indices, points_all, all_tries, all_face_normals, all_vert_normals, pnt_dir)
     return all_tries, all_face_normals, all_vert_normals, points_all, face_norm_surfpnt, from_marchingcube
+
+
+
+
+
 
 def create_gvf_obj(gpu, cat_mesh_dir, cat_norm_mesh_dir, cat_gvf_dir, cat_pnt_dir, cat_ref_dir, obj, normalize, num_sample, cat_id, version, ungrid, uni_ratio, surf_ratio, skip_all_exist, realmodel):
     obj=obj.rstrip('\r\n')
@@ -472,12 +517,12 @@ if __name__ == "__main__":
     parser.add_argument('--thread_num', type=int, default='1', help='how many objs are creating at the same time')
     parser.add_argument('--shuffle', action='store_true')
     parser.add_argument('--realmodel', action='store_true')
-    parser.add_argument('--surfspan', type=float, default=0.0)
+    parser.add_argument('--surfspan', type=float, default=0.05)
     parser.add_argument('--category', type=str, default="all",
                         help='Which single class to generate on [default: all, can be chair or plane, etc.]')
     FLAGS = parser.parse_args()
 
-    # nohup python -u gpu_create_manifold_gvf.py --thread_num 16 --shuffle --category chair --surfspan 0.0 &> create_gvf.log &
+    # nohup python -u gpu_create_manifold_gvf.py --thread_num 16 --shuffle --category chair  &> create_gvf.log &
     # nohup python -u gpu_create_manifold_gvf.py --thread_num 3 --shuffle --category chair --realmodel &> create_gvf.log &
 
     #  full set

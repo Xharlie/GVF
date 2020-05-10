@@ -1,3 +1,4 @@
+train/checkpoint
 *.log
 *.obj
 *.ply

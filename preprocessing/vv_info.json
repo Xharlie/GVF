@@ -33,9 +33,8 @@
     "raw_dirs_v1": {
         "mesh_dir": "/media/ssd/xharlie/ShapeNet/ShapeNetCore.v1/",
         "norm_mesh_dir":"/media/ssd/xharlie/ShapeNet/ShapeNetCore_v1_norm/",
-        "ivt_dir": "/media/ssd/xharlie/ShapeNet/IVT_v1_biguni/",
         "gvf_dir": "/media/ssd/xharlie/ShapeNet/gvf/",
-        "gvf_mani_dir": "/media/ssd/xharlie/ShapeNet/gvf_mani_4nospan/",
+        "gvf_mani_dir": "/media/ssd/xharlie/ShapeNet/gvf_mani_4_area/",
         "pnt_dir": "/media/ssd/xharlie/ShapeNet/pnt_2/",
         "ivt_mani_dir": "/media/ssd/xharlie/ShapeNet/IVT_mani_v1/",
         "ref_mani_dir": "/media/hdd2/data/ShapeNet/march_cube_objs_v1",
