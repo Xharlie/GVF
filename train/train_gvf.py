@@ -92,7 +92,7 @@ TEST_RESULT_PATH = os.path.join(FLAGS.log_dir, 'test_results')
 if not os.path.exists(TEST_RESULT_PATH): os.mkdir(TEST_RESULT_PATH)
 
 os.system('cp %s.py %s' % (os.path.splitext(model.__file__)[0], FLAGS.log_dir))
-os.system('cp train_ivt.py %s' % (FLAGS.log_dir))
+os.system('cp train_gvf.py %s' % (FLAGS.log_dir))
 LOG_FOUT = open(os.path.join(FLAGS.log_dir, 'log_train.txt'), 'w')
 LOG_FOUT.write(str(FLAGS)+'\n')
 
@@ -389,13 +389,13 @@ def train_one_epoch(sess, ops, epoch):
         fetch_time += (time.time() - start_fetch_tic)
         feed_dict = {ops['is_training_pl']: is_training,
                      ops['input_pls']['pnts']: batch_data['pnts'],
-                     ops['input_pls']['ivts']: batch_data['gvfs'],
+                     ops['input_pls']['gvfs']: batch_data['gvfs'],
                      ops['input_pls']['imgs']: batch_data['imgs'],
                      ops['input_pls']['obj_rot_mats']: batch_data['obj_rot_mats'],
                      ops['input_pls']['trans_mats']: batch_data['trans_mats']}
         if FLAGS.edgeweight != 1.0:
             feed_dict[ops['input_pls']['onedge']] = batch_data['onedge']
-        output_list = [ops['train_op'], ops['step'], ops['lr'],  ops['end_points']['pnts_rot'], ops['end_points']['gt_ivts_xyz'], ops['end_points']['gt_ivts_dist'], ops['end_points']['gt_ivts_direction'], ops['end_points']['pred_ivts_xyz'], ops['end_points']['pred_ivts_dist'],ops['end_points']['pred_ivts_direction'], ops['end_points']['sample_img_points'], ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
+        output_list = [ops['train_op'], ops['step'], ops['lr'],  ops['end_points']['pnts_rot'], ops['end_points']['gt_gvfs_xyz'], ops['end_points']['gt_gvfs_dist'], ops['end_points']['gt_gvfs_direction'], ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],ops['end_points']['pred_gvfs_direction'], ops['end_points']['sample_img_points'], ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
 
         loss_list = []
         for il, lossname in enumerate(losses.keys()):
@@ -403,25 +403,25 @@ def train_one_epoch(sess, ops, epoch):
 
         outputs = sess.run(output_list + loss_list, feed_dict=feed_dict)
 
-        _, step, lr_val, gt_rot_pnts_val, gt_ivts_xyz_val, gt_ivts_dist_val, gt_direction_val, \
+        _, step, lr_val, gt_rot_pnts_val, gt_gvfs_xyz_val, gt_gvfs_dist_val, gt_direction_val, \
         pred_xyz_val, pred_dist_val, pred_direction_val, sample_img_points_val, imgs_val, weighed_mask_val = outputs[:-len(losses)]
 
         for il, lossname in enumerate(losses.keys()):
-            if lossname == "ivts_xyz_avg_diff":
+            if lossname == "gvfs_xyz_avg_diff":
                 xyz_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_dist_avg_diff":
+            if lossname == "gvfs_dist_avg_diff":
                 dist_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_direction_avg_diff":
+            if lossname == "gvfs_direction_avg_diff":
                 direction_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_direction_abs_avg_diff":
+            if lossname == "gvfs_direction_abs_avg_diff":
                 direction_abs_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_avg_diff":
+            if lossname == "gvfs_locnorm_avg_diff":
                 locnorm_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locsqrnorm_avg_diff":
+            if lossname == "gvfs_locsqrnorm_avg_diff":
                 locsqrnorm_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_onedge_sum_diff":
+            if lossname == "gvfs_locnorm_onedge_sum_diff":
                 locnorm_onedge_sum_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_ontri_sum_diff":
+            if lossname == "gvfs_locnorm_ontri_sum_diff":
                 locnorm_ontri_sum_diff_epoch += outputs[len(output_list) + il]
             if lossname == "onedge_count":
                 onedge_count_epoch += outputs[len(output_list) + il]
@@ -433,7 +433,7 @@ def train_one_epoch(sess, ops, epoch):
         # for il, lossname in enumerate(losses.keys()):
         #         outstr += '%s: %f, ' % (lossname, outputs[len(output_list)+il])
         # # outstr += " weight mask =" + str(weighed_mask_val)
-        # # outstr += " gt_ivts_xyz_val =" + str(batch_data['ivts'])
+        # # outstr += " gt_gvfs_xyz_val =" + str(batch_data['gvfs'])
         # log_string(outstr)
                 
         verbose_freq = 100.
@@ -442,9 +442,9 @@ def train_one_epoch(sess, ops, epoch):
             # sampling
             outstr = ' -- %03d / %03d -- ' % (batch_idx+1, num_batches)
             for lossname in losses.keys():
-                if lossname == "ivts_locnorm_onedge_sum_diff":
+                if lossname == "gvfs_locnorm_onedge_sum_diff":
                     outstr += '%s: %f, ' % ("locnorm_onedge_diff", losses[lossname] / losses["onedge_count"])
-                elif lossname == "ivts_locnorm_ontri_sum_diff":
+                elif lossname == "gvfs_locnorm_ontri_sum_diff":
                     outstr += '%s: %f, ' % ("locnorm_ontri_diff", losses[lossname] / losses["ontri_count"])
                 elif lossname == "onedge_count" or lossname == "ontri_count":
                     outstr += '%s: %d, ' % (lossname, int(losses[lossname]))
@@ -472,8 +472,8 @@ def train_one_epoch(sess, ops, epoch):
 
             # np.savetxt(os.path.join(RESULT_PATH, '%d_input_pnts_%d.txt' % (batch_idx,epoch)), gt_rot_pnts_val[bid, :, :], delimiter=';')
             #
-            # np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_pred_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
-            # np.savetxt(os.path.join(RESULT_PATH, '%d_ivts_gt_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :], np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
+            # np.savetxt(os.path.join(RESULT_PATH, '%d_gvfs_pred_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
+            # np.savetxt(os.path.join(RESULT_PATH, '%d_gvfs_gt_%d.txt' % (batch_idx,epoch)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_gvfs_xyz_val[bid, :, :], np.expand_dims(gt_gvfs_dist_val[bid, :, 0], 1)), axis=1), delimiter=';')
 
     print("avg xyz_avg_diff:", xyz_avg_diff_epoch / num_batches)
     print("avg locnorm_avg_diff:", locnorm_avg_diff_epoch / num_batches)
@@ -528,16 +528,16 @@ def test_one_epoch(sess, ops, epoch):
         fetch_time += (time.time() - start_fetch_tic)
         feed_dict = {ops['is_training_pl']: is_training,
                      ops['input_pls']['pnts']: batch_data['pnts'],
-                     ops['input_pls']['ivts']: batch_data['gvfs'],
+                     ops['input_pls']['gvfs']: batch_data['gvfs'],
                      ops['input_pls']['imgs']: batch_data['imgs'],
                      ops['input_pls']['obj_rot_mats']: batch_data['obj_rot_mats'],
                      ops['input_pls']['trans_mats']: batch_data['trans_mats']}
         if FLAGS.edgeweight != 1.0:
             feed_dict[ops['input_pls']['onedge']] = batch_data['onedge']
-        output_list = [ops['end_points']['pnts_rot'], ops['end_points']['gt_ivts_xyz'],
-                       ops['end_points']['gt_ivts_dist'], ops['end_points']['gt_ivts_direction'],
-                       ops['end_points']['pred_ivts_xyz'], ops['end_points']['pred_ivts_dist'],
-                       ops['end_points']['pred_ivts_direction'], ops['end_points']['sample_img_points'],
+        output_list = [ops['end_points']['pnts_rot'], ops['end_points']['gt_gvfs_xyz'],
+                       ops['end_points']['gt_gvfs_dist'], ops['end_points']['gt_gvfs_direction'],
+                       ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],
+                       ops['end_points']['pred_gvfs_direction'], ops['end_points']['sample_img_points'],
                        ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
 
         loss_list = []
@@ -550,25 +550,25 @@ def test_one_epoch(sess, ops, epoch):
 
         outputs = sess.run(output_list + loss_list + lvl_list, feed_dict=feed_dict)
 
-        gt_rot_pnts_val, gt_ivts_xyz_val, gt_ivts_dist_val, gt_direction_val, \
+        gt_rot_pnts_val, gt_gvfs_xyz_val, gt_gvfs_dist_val, gt_direction_val, \
         pred_xyz_val, pred_dist_val, pred_direction_val, sample_img_points_val, imgs_val, weighed_mask_val = outputs[:-len(losses) - len(lvl_list)]
 
         for il, lossname in enumerate(losses.keys()):
-            if lossname == "ivts_xyz_avg_diff":
+            if lossname == "gvfs_xyz_avg_diff":
                 xyz_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_dist_avg_diff":
+            if lossname == "gvfs_dist_avg_diff":
                 dist_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_direction_avg_diff":
+            if lossname == "gvfs_direction_avg_diff":
                 direction_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_direction_abs_avg_diff":
+            if lossname == "gvfs_direction_abs_avg_diff":
                 direction_abs_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_avg_diff":
+            if lossname == "gvfs_locnorm_avg_diff":
                 locnorm_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locsqrnorm_avg_diff":
+            if lossname == "gvfs_locsqrnorm_avg_diff":
                 locsqrnorm_avg_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_onedge_sum_diff":
+            if lossname == "gvfs_locnorm_onedge_sum_diff":
                 locnorm_onedge_sum_diff_epoch += outputs[len(output_list) + il]
-            if lossname == "ivts_locnorm_ontri_sum_diff":
+            if lossname == "gvfs_locnorm_ontri_sum_diff":
                 locnorm_ontri_sum_diff_epoch += outputs[len(output_list) + il]
             if lossname == "onedge_count":
                 onedge_count_epoch += outputs[len(output_list) + il]
@@ -598,9 +598,9 @@ def test_one_epoch(sess, ops, epoch):
             # sampling
             outstr = 'TEST epoch %d -- %03d / %03d -- ' % (epoch, batch_idx + 1, num_batches)
             for lossname in losses.keys():
-                if lossname == "ivts_locnorm_onedge_sum_diff":
+                if lossname == "gvfs_locnorm_onedge_sum_diff":
                     outstr += '%s: %f, ' % ("locnorm_onedge_diff", losses[lossname] / losses["onedge_count"])
-                elif lossname == "ivts_locnorm_ontri_sum_diff":
+                elif lossname == "gvfs_locnorm_ontri_sum_diff":
                     outstr += '%s: %f, ' % ("locnorm_ontri_diff", losses[lossname] / losses["ontri_count"])
                 elif lossname == "onedge_count" or lossname == "ontri_count":
                     outstr += '%s: %d, ' % (lossname, int(losses[lossname]))
@@ -625,8 +625,8 @@ def test_one_epoch(sess, ops, epoch):
                 cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
             cv2.imwrite(os.path.join(TEST_RESULT_PATH, '%d_img_pnts.png' % (batch_idx)), saveimg)
             # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_input_pnts.txt' % (batch_idx)), gt_rot_pnts_val[bid, :, :], delimiter=';')
-            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_pred.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
-            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_ivts_gt.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_ivts_xyz_val[bid, :, :],np.expand_dims(gt_ivts_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
+            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_gvfs_pred.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
+            # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_gvfs_gt.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_gvfs_xyz_val[bid, :, :],np.expand_dims(gt_gvfs_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
 
     if FLAGS.distlimit is not None:
         print(

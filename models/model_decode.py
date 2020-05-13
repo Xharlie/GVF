@@ -72,7 +72,6 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
         end_points['pnts_rot'] = input_pnts
     if FLAGS.edgeweight != 1.0:
         end_points['onedge'] = input_onedge
-    input_pnts_rot = end_points['pnts_rot']
     end_points['imgs'] = input_imgs # B*H*W*3|4
 
     # Image extract features
@@ -91,33 +90,11 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
         vgg.vgg_16.default_image_size = img_size
         with slim.arg_scope([slim.conv2d], weights_regularizer=slim.l2_regularizer(FLAGS.wd)):
             ref_feats_embedding, encdr_end_points = vgg.vgg_16(ref_img, num_classes=FLAGS.num_classes, is_training=False, scope='vgg_16', spatial_squeeze=False)
-    elif FLAGS.encoder == "sim_res":
-        ref_feats_embedding, encdr_end_points = res_sim_encoder.res_sim_encoder(ref_img, FLAGS.batch_size, is_training=is_training, activation_fn=activation_fn, bn=bn, bn_decay=bn_decay, wd=FLAGS.wd)
-    elif FLAGS.encoder == "resnet_v1_50":
-        resnet_v1.default_image_size = img_size
-        with slim.arg_scope(resnet_v1.resnet_arg_scope()):
-            ref_feats_embedding, encdr_end_points = resnet_v1.resnet_v1_50(ref_img, FLAGS.num_classes, is_training=is_training, scope='resnet_v1_50')
-        scopelst = ["resnet_v1_50/block1","resnet_v1_50/block2","resnet_v1_50/block3",'resnet_v1_50/block4']
-    elif FLAGS.encoder == "resnet_v1_101":
-        resnet_v1.default_image_size = img_size
-        with slim.arg_scope(resnet_v1.resnet_arg_scope()):
-            ref_feats_embedding, encdr_end_points = resnet_v1.resnet_v1_101(ref_img, FLAGS.num_classes, is_training=is_training, scope='resnet_v1_101')
-        scopelst = ["resnet_v1_101/block1", "resnet_v1_101/block2", "resnet_v1_101/block3", 'resnet_v1_101/block4']
-    elif FLAGS.encoder == "resnet_v2_50":
-        resnet_v2.default_image_size = img_size
-        with slim.arg_scope(resnet_v1.resnet_arg_scope()):
-            ref_feats_embedding, encdr_end_points = resnet_v2.resnet_v2_50(ref_img, FLAGS.num_classes, is_training=is_training, scope='resnet_v2_50')
-        scopelst = ["resnet_v2_50/block1", "resnet_v2_50/block2", "resnet_v2_50/block3", 'resnet_v2_50/block4']
-    elif FLAGS.encoder == "resnet_v2_101":
-        resnet_v2.default_image_size = img_size
-        with slim.arg_scope(resnet_v1.resnet_arg_scope()):
-            ref_feats_embedding, encdr_end_points = resnet_v2.resnet_v2_101(ref_img, FLAGS.num_classes, is_training=is_training, scope='resnet_v2_101')
-        scopelst = ["resnet_v2_101/block1", "resnet_v2_101/block2", "resnet_v2_101/block3", 'resnet_v2_101/block4']
     end_points['img_embedding'] = ref_feats_embedding
     point_img_feat=None
     gvfs_feat=None
-    sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
-
+    # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
+    
 
     if FLAGS.img_feat_onestream:
         with tf.compat.v1.variable_scope("sdfimgfeat") as scope:
@@ -128,46 +105,12 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
                 point_conv2 = tf.contrib.resampler.resampler(conv2, sample_img_points)
                 conv3 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv3/conv3_3'], (FLAGS.img_h, FLAGS.img_w))
                 point_conv3 = tf.contrib.resampler.resampler(conv3, sample_img_points)
-                if FLAGS.encoder[-7:] != "smaller":
-                    conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv4/conv4_3'], (FLAGS.img_h, FLAGS.img_w))
-                    point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
-                    point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3, point_conv4]) # small
-                else:
-                    print("smaller vgg")
-                    point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3]) # small
-            elif FLAGS.encoder[:3] == "res":
-                # print(encdr_end_points.keys())
-                conv1 = tf.compat.v1.image.resize_bilinear(encdr_end_points[scopelst[0]], (FLAGS.img_h, FLAGS.img_w))
-                point_conv1 = tf.contrib.resampler.resampler(conv1, sample_img_points)
-                conv2 = tf.compat.v1.image.resize_bilinear(encdr_end_points[scopelst[1]], (FLAGS.img_h, FLAGS.img_w))
-                point_conv2 = tf.contrib.resampler.resampler(conv2, sample_img_points)
-                conv3 = tf.compat.v1.image.resize_bilinear(encdr_end_points[scopelst[2]], (FLAGS.img_h, FLAGS.img_w))
-                point_conv3 = tf.contrib.resampler.resampler(conv3, sample_img_points)
-                # conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points[scopelst[3]], (FLAGS.img_h, FLAGS.img_w))
-                # point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
-                point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3])
-            else:
-                conv1 = tf.compat.v1.image.resize_bilinear(encdr_end_points[0], (FLAGS.img_h, FLAGS.img_w))
-                point_conv1 = tf.contrib.resampler.resampler(conv1, sample_img_points)
-                conv2 = tf.compat.v1.image.resize_bilinear(encdr_end_points[1], (FLAGS.img_h, FLAGS.img_w))
-                point_conv2 = tf.contrib.resampler.resampler(conv2, sample_img_points)
-                conv3 = tf.compat.v1.image.resize_bilinear(encdr_end_points[2], (FLAGS.img_h, FLAGS.img_w))
-                point_conv3 = tf.contrib.resampler.resampler(conv3, sample_img_points)
-                # conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points[scopelst[3]], (FLAGS.img_h, FLAGS.img_w))
-                # point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
-                point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3])
+                conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv4/conv4_3'], (FLAGS.img_h, FLAGS.img_w))
+                point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
+                point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3, point_conv4]) # small
+
             print("point_img_feat.shape", point_img_feat.get_shape())
             point_img_feat = tf.expand_dims(point_img_feat, axis=2)
-            if FLAGS.decoder == "att":
-                gvfs_feat = gvfnet.get_gvf_att_imgfeat(input_pnts_rot, ref_feats_embedding, point_img_feat, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
-            elif FLAGS.decoder == "skip":
-                gvfs_feat = gvfnet.get_gvf_basic_imgfeat_onestream_skip(input_pnts_rot, ref_feats_embedding, point_img_feat, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
-            else:
-                gvfs_feat = gvfnet.get_gvf_basic_imgfeat_onestream(input_pnts_rot, ref_feats_embedding, point_img_feat, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
-    else:
-        if not FLAGS.multi_view:
-            with tf.compat.v1.variable_scope("sdfprediction") as scope:
-                gvfs_feat = gvfnet.get_gvf_basic(input_pnts_rot, ref_feats_embedding, is_training, batch_size, bn, bn_decay,wd=FLAGS.wd, activation_fn=activation_fn)
     end_points['pred_gvfs_xyz'], end_points['pred_gvfs_dist'], end_points['pred_gvfs_direction'] = None, None, None
     if FLAGS.XYZ:
         end_points['pred_gvfs_xyz'] = gvfnet.xyz_gvfhead(gvfs_feat, batch_size, wd=FLAGS.wd, activation_fn=activation_fn)
