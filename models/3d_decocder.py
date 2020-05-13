@@ -13,8 +13,7 @@ except ImportError:
     from keras.layers.merge import concatenate
 
 
-def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), n_labels=1, initial_learning_rate=0.00001, deconvolution=False,
-                  depth=4, batch_normalization=False, activation_lst=None, activation_name="sigmoid", res=True):
+def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4, batch_normalization=False, activation_lst=None, res=True):
     """
     Builds the 3D UNet Keras model.f
     :param metrics: List metrics to be calculated during model training (default is dice coefficient).
@@ -34,22 +33,27 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
     :return: Untrained 3D UNet Model
     """
     current_layer = inputs
-    levels = list()
 
     # add levels with up-convolution or up-sampling
     for layer_depth in range(depth):
         if res:
-            previous_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=current_layer, batch_normalization=batch_normalization, kernel=(1,1,1))
-            up_pre = get_up_convolution(previous_layer, pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[depth])
+            previous_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=current_layer, batch_normalization=batch_normalization, kernel=(1,1,1), activation=activation_lst[depth])
+            up_pre = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[depth])(previous_layer)
         else:
             up_pre = 0
-        up_convolution = get_up_convolution(current_layer, pool_size=pool_size, deconvolution=deconvolution, n_filters=current_layer.get_shape().as_list()[-1])
-        current_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=up_convolution, batch_normalization=batch_normalization)
+        up_convolution = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=current_layer.get_shape().as_list()[-1])(current_layer)
+        current_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=up_convolution, batch_normalization=batch_normalization, activation=activation_lst[depth])
         current_layer = current_layer + up_pre
 
     final_convolution = Conv3D(channel_size[-1], (1, 1, 1))(current_layer)
-    act = Activation(activation_name)(final_convolution)
+    act = get_activation(activation_lst[-1])(final_convolution)
     return act
+
+def get_activation(act):
+    if isinstance(act, str):
+        return Activation(act)
+    else:
+        return activation()
 
 
 def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None,
@@ -77,7 +81,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     if activation is None:
         return Activation('relu')(layer)
     else:
-        return activation()(layer)
+        return get_activation()(layer)
 
 
 def compute_level_output_shape(n_filters, depth, pool_size, image_shape):
