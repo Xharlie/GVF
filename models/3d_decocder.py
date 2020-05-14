@@ -53,7 +53,7 @@ def get_activation(act):
     if isinstance(act, str):
         return Activation(act)
     else:
-        return activation()
+        return act()
 
 
 def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None,

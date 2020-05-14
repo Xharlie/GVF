@@ -1,6 +1,11 @@
 import tensorflow as tf
 import tf_util
 
+def get_decoder_feat(src_pc, dec3d, dim):
+    res = 2.0 / dim
+    pc_ind = tf.cast(tf.math.floordiv(src_pc,res), tf.float32) 
+
+
 def get_gvf_basic(src_pc, globalfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
 
     net = tf_util.conv2d(tf.expand_dims(src_pc,2), 64, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv1')

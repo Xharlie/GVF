@@ -10,7 +10,7 @@ sys.path.append(os.path.join(BASE_DIR,'data'))
 sys.path.append(os.path.join(BASE_DIR, 'models'))
 print(os.path.join(BASE_DIR, 'models'))
 import gvfnet
-import res_sim_encoder
+import unet_model_3d
 
 def placeholder_inputs(scope='', FLAGS=None, num_pnts=None):
     if num_pnts is None:
@@ -33,16 +33,6 @@ def placeholder_inputs(scope='', FLAGS=None, num_pnts=None):
     gvf['trans_mats'] = trans_mat_pl
     gvf['onedge'] = onedge_pl
     return gvf
-
-
-# def placeholder_features(batch_size, num_sample_pc = 256, scope=''):
-#     with tf.compat.v1.variable_scope(scope) as sc:
-#         ref_feats_embedding_cnn_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 1, 1, 1024))
-#         point_img_feat_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, num_sample_pc, 1, 1472))
-#     feat = {}
-#     feat['ref_feats_embedding_cnn'] = ref_feats_embedding_cnn_pl
-#     feat['point_img_feat'] = point_img_feat_pl
-#     return feat
 
 def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, FLAGS=None):
 
@@ -94,7 +84,7 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
     point_img_feat=None
     gvfs_feat=None
     # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
-    dec3d = unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4,
+    dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4,
                   batch_normalization=False, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True)
 
     # if FLAGS.img_feat_onestream:
