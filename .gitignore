@@ -1,3 +1,4 @@
+*DS_store
 train/checkpoint
 *.log
 *.obj
