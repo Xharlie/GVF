@@ -82,12 +82,11 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
             ref_feats_embedding, encdr_end_points = vgg.vgg_16(ref_img, num_classes=FLAGS.num_classes, is_training=False, scope='vgg_16', spatial_squeeze=False)
     end_points['img_embedding'] = ref_feats_embedding
     point_img_feat=None
-    gvfs_feat=None
     # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
     dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4,
                   batch_normalization=False, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True)
-    # batch_index = tf.repeat(tf.expand_dims(tf.range(0,batch_size),axis=1), repeat=[1,FLAGS.num_pnts])
-    dec_feats_pnts = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
+    dec_feats_pnts, pc_relative = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
+    gvfs_feat = gvfnet.get_gvf_decoderfeat(pc_relative, dec_feats_pnts, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
 
     # if FLAGS.img_feat_onestream:
     #     with tf.compat.v1.variable_scope("sdfimgfeat") as scope:
@@ -113,11 +112,7 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
     else:
         end_points['pred_gvfs_dist'], end_points['pred_gvfs_direction'] = gvfnet.dist_direct_gvfhead(gvfs_feat, batch_size, wd=FLAGS.wd, activation_fn=activation_fn)
         end_points['pred_gvfs_xyz'] = end_points['pred_gvfs_direction'] * end_points['pred_gvfs_dist']
-
-    end_points["sample_img_points"] = sample_img_points
     # end_points["ref_feats_embedding"] = ref_feats_embedding
-    end_points["point_img_feat"] = point_img_feat
-
     return end_points
 
 def get_img_points(sample_pc, trans_mat_right):

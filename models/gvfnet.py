@@ -2,10 +2,30 @@ import tensorflow as tf
 import tf_util
 
 def get_decoder_feat(src_pc, dec3d, dim):
-    res = 2.0 / dim
-    pc_ind = tf.cast(tf.math.floordiv(src_pc,res), tf.float32)
-    dec_feats_pnts = tf.gather_nd(dec3d, pc_ind, batch_dims=1)
-    return dec_feats_pnts
+    vlength = 2.0 / dim
+    bottom = tf.constant([-1.0,-1.0,-1.0]).reshape(1,1,3)
+    pc_rebase = src_pc - bottom
+    pc_ind = tf.maxinum(tf.mininum(dim-1, tf.cast(tf.math.floordiv(pc_rebase, vlength))), 0)
+    pc_relative = pc_rebase - (pc_ind+0.5) * vlength
+    dec_feats_pnts = tf.gather_nd(dec3d, tf.cast(pc_ind,tf.int), batch_dims=1)
+    # print("dec_feats_pnts", dec_feats_pnts.get_shape().as_list())
+    return dec_feats_pnts, pc_relative
+
+def get_gvf_decoderfeat(src_pc, decoderfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
+
+    net = tf_util.conv2d(tf.expand_dims(src_pc,2), 64, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv1')
+    net = tf_util.conv2d(net, 256, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn,bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv2')
+    net = tf_util.conv2d(net, 512, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv3')
+
+    print( 'net', net.shape)
+    print( 'decoderfeats', decoderfeats.shape)
+    concat = tf.concat(axis=3, values=[net, decoderfeats])
+
+    net = tf_util.conv2d(concat, 512, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold2/conv1')
+    net = tf_util.conv2d(net, 256, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold2/conv2')
+
+    return net
+
 
 def get_gvf_basic(src_pc, globalfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
 
@@ -133,3 +153,4 @@ def dist_direct_gvfhead(net, batch_size, wd=None, activation_fn=tf.nn.relu):
     pred_dist = tf.reshape(pred_dist, [batch_size, -1, 1])
 
     return pred_dist, direction
+

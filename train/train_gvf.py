@@ -17,7 +17,7 @@ sys.path.append(os.path.join(BASE_DIR, 'models'))
 sys.path.append(os.path.join(BASE_DIR, 'utils'))
 sys.path.append(os.path.join(BASE_DIR, 'data'))
 sys.path.append(os.path.join(BASE_DIR, 'preprocessing'))
-import model_normalization as model
+import model_decode as model
 import data_gvf_queue as data
 import output_utils
 import create_file_lst
