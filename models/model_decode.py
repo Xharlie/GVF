@@ -10,7 +10,7 @@ sys.path.append(os.path.join(BASE_DIR,'data'))
 sys.path.append(os.path.join(BASE_DIR, 'models'))
 print(os.path.join(BASE_DIR, 'models'))
 import gvfnet
-import unet_model_3d
+from threed_decoder import unet_model_3d
 
 def placeholder_inputs(scope='', FLAGS=None, num_pnts=None):
     if num_pnts is None:
