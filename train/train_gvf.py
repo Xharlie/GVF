@@ -17,7 +17,6 @@ sys.path.append(os.path.join(BASE_DIR, 'models'))
 sys.path.append(os.path.join(BASE_DIR, 'utils'))
 sys.path.append(os.path.join(BASE_DIR, 'data'))
 sys.path.append(os.path.join(BASE_DIR, 'preprocessing'))
-import model_decode as model
 import data_gvf_queue as data
 import output_utils
 import create_file_lst
@@ -31,7 +30,7 @@ parser.add_argument('--encoder', type=str, default='vgg_16', help='encoder model
 parser.add_argument('--category', type=str, default="all", help='Which single class to train on [default: None]')
 parser.add_argument('--log_dir', default='checkpoint', help='Log dir [default: log]')
 parser.add_argument('--num_pnts', type=int, default=2048, help='Point Number [default: 2048]')
-parser.add_argument('--res', type=int, default=16, help='Point Number [default: 2048]')
+parser.add_argument('--res', type=int, default=0, help='Point Number [default: 2048]')
 parser.add_argument('--uni_num', type=int, default=1024, help='Point Number [default: 2048]')
 parser.add_argument('--sphere_num', type=int, default=0, help='Point Number [default: 2048]')
 parser.add_argument('--num_classes', type=int, default=1024, help='vgg dim')
@@ -80,6 +79,10 @@ FLAGS.distlimit = [float(i) for i in FLAGS.distlimit]
 FLAGS.surfrange = [float(i) for i in FLAGS.surfrange]
 
 print(FLAGS)
+if FLAGS.res == 0:
+    import model_normalization as model
+else:
+    import model_decode as model
 
 
 
