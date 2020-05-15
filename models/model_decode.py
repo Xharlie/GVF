@@ -86,6 +86,8 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
     # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
     dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4,
                   batch_normalization=False, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True)
+    # batch_index = tf.repeat(tf.expand_dims(tf.range(0,batch_size),axis=1), repeat=[1,FLAGS.num_pnts])
+    dec_feats_pnts = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
 
     # if FLAGS.img_feat_onestream:
     #     with tf.compat.v1.variable_scope("sdfimgfeat") as scope:

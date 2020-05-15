@@ -3,8 +3,9 @@ import tf_util
 
 def get_decoder_feat(src_pc, dec3d, dim):
     res = 2.0 / dim
-    pc_ind = tf.cast(tf.math.floordiv(src_pc,res), tf.float32) 
-
+    pc_ind = tf.cast(tf.math.floordiv(src_pc,res), tf.float32)
+    dec_feats_pnts = tf.gather_nd(dec3d, pc_ind, batch_dims=1)
+    return dec_feats_pnts
 
 def get_gvf_basic(src_pc, globalfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
 
