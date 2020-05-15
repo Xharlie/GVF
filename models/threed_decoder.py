@@ -81,7 +81,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     if activation is None:
         return Activation('relu')(layer)
     else:
-        return get_activation()(layer)
+        return get_activation(activation)(layer)
 
 
 def compute_level_output_shape(n_filters, depth, pool_size, image_shape):

@@ -398,7 +398,7 @@ def train_one_epoch(sess, ops, epoch):
                      ops['input_pls']['trans_mats']: batch_data['trans_mats']}
         if FLAGS.edgeweight != 1.0:
             feed_dict[ops['input_pls']['onedge']] = batch_data['onedge']
-        output_list = [ops['train_op'], ops['step'], ops['lr'],  ops['end_points']['pnts_rot'], ops['end_points']['gt_gvfs_xyz'], ops['end_points']['gt_gvfs_dist'], ops['end_points']['gt_gvfs_direction'], ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],ops['end_points']['pred_gvfs_direction'], ops['end_points']['sample_img_points'], ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
+        output_list = [ops['train_op'], ops['step'], ops['lr'],  ops['end_points']['pnts_rot'], ops['end_points']['gt_gvfs_xyz'], ops['end_points']['gt_gvfs_dist'], ops['end_points']['gt_gvfs_direction'], ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],ops['end_points']['pred_gvfs_direction'], ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
 
         loss_list = []
         for il, lossname in enumerate(losses.keys()):
@@ -407,7 +407,7 @@ def train_one_epoch(sess, ops, epoch):
         outputs = sess.run(output_list + loss_list, feed_dict=feed_dict)
 
         _, step, lr_val, gt_rot_pnts_val, gt_gvfs_xyz_val, gt_gvfs_dist_val, gt_direction_val, \
-        pred_xyz_val, pred_dist_val, pred_direction_val, sample_img_points_val, imgs_val, weighed_mask_val = outputs[:-len(losses)]
+        pred_xyz_val, pred_dist_val, pred_direction_val, imgs_val, weighed_mask_val = outputs[:-len(losses)]
 
         for il, lossname in enumerate(losses.keys()):
             if lossname == "gvfs_xyz_avg_diff":
@@ -461,17 +461,17 @@ def train_one_epoch(sess, ops, epoch):
             fetch_time = 0
             log_string(outstr)
 
-        if batch_idx % 1000 == 0:
-            bid = 0
-            saveimg = (imgs_val[bid, :, :, :] * 255).astype(np.uint8)
-            samplept_img = sample_img_points_val[bid, ...]
-            choice = np.random.randint(samplept_img.shape[0], size=100)
-            samplept_img = samplept_img[choice, ...]
-            for j in range(samplept_img.shape[0]):
-                x = int(samplept_img[j, 0])
-                y = int(samplept_img[j, 1])
-                cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
-            cv2.imwrite(os.path.join(RESULT_PATH, '%d_img_pnts_%d.png' % (batch_idx,epoch)), saveimg)
+        # if batch_idx % 1000 == 0:
+            # bid = 0
+            # saveimg = (imgs_val[bid, :, :, :] * 255).astype(np.uint8)
+            # samplept_img = sample_img_points_val[bid, ...]
+            # choice = np.random.randint(samplept_img.shape[0], size=100)
+            # samplept_img = samplept_img[choice, ...]
+            # for j in range(samplept_img.shape[0]):
+            #     x = int(samplept_img[j, 0])
+            #     y = int(samplept_img[j, 1])
+            #     cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
+            # cv2.imwrite(os.path.join(RESULT_PATH, '%d_img_pnts_%d.png' % (batch_idx,epoch)), saveimg)
 
             # np.savetxt(os.path.join(RESULT_PATH, '%d_input_pnts_%d.txt' % (batch_idx,epoch)), gt_rot_pnts_val[bid, :, :], delimiter=';')
             #
@@ -540,8 +540,7 @@ def test_one_epoch(sess, ops, epoch):
         output_list = [ops['end_points']['pnts_rot'], ops['end_points']['gt_gvfs_xyz'],
                        ops['end_points']['gt_gvfs_dist'], ops['end_points']['gt_gvfs_direction'],
                        ops['end_points']['pred_gvfs_xyz'], ops['end_points']['pred_gvfs_dist'],
-                       ops['end_points']['pred_gvfs_direction'], ops['end_points']['sample_img_points'],
-                       ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
+                       ops['end_points']['pred_gvfs_direction'], ops['end_points']['imgs'], ops['end_points']['weighed_mask']]
 
         loss_list = []
         lvl_list = []
@@ -554,7 +553,7 @@ def test_one_epoch(sess, ops, epoch):
         outputs = sess.run(output_list + loss_list + lvl_list, feed_dict=feed_dict)
 
         gt_rot_pnts_val, gt_gvfs_xyz_val, gt_gvfs_dist_val, gt_direction_val, \
-        pred_xyz_val, pred_dist_val, pred_direction_val, sample_img_points_val, imgs_val, weighed_mask_val = outputs[:-len(losses) - len(lvl_list)]
+        pred_xyz_val, pred_dist_val, pred_direction_val, imgs_val, weighed_mask_val = outputs[:-len(losses) - len(lvl_list)]
 
         for il, lossname in enumerate(losses.keys()):
             if lossname == "gvfs_xyz_avg_diff":
@@ -616,17 +615,17 @@ def test_one_epoch(sess, ops, epoch):
             fetch_time = 0
             log_string(outstr)
 
-        if batch_idx % 1000 == 0:
-            bid = 0
-            saveimg = (imgs_val[bid, :, :, :] * 255).astype(np.uint8)
-            samplept_img = sample_img_points_val[bid, ...]
-            choice = np.random.randint(samplept_img.shape[0], size=100)
-            samplept_img = samplept_img[choice, ...]
-            for j in range(samplept_img.shape[0]):
-                x = int(samplept_img[j, 0])
-                y = int(samplept_img[j, 1])
-                cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
-            cv2.imwrite(os.path.join(TEST_RESULT_PATH, '%d_img_pnts.png' % (batch_idx)), saveimg)
+        # if batch_idx % 1000 == 0:
+        #     bid = 0
+        #     saveimg = (imgs_val[bid, :, :, :] * 255).astype(np.uint8)
+        #     samplept_img = sample_img_points_val[bid, ...]
+        #     choice = np.random.randint(samplept_img.shape[0], size=100)
+        #     samplept_img = samplept_img[choice, ...]
+        #     for j in range(samplept_img.shape[0]):
+        #         x = int(samplept_img[j, 0])
+        #         y = int(samplept_img[j, 1])
+        #         cv2.circle(saveimg, (x, y), 3, (0, 0, 255, 255), -1)
+        #     cv2.imwrite(os.path.join(TEST_RESULT_PATH, '%d_img_pnts.png' % (batch_idx)), saveimg)
             # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_input_pnts.txt' % (batch_idx)), gt_rot_pnts_val[bid, :, :], delimiter=';')
             # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_gvfs_pred.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + pred_xyz_val[bid, :, :], np.expand_dims(pred_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')
             # np.savetxt(os.path.join(TEST_RESULT_PATH, '%d_gvfs_gt.txt' % (batch_idx)), np.concatenate((gt_rot_pnts_val[bid, :, :] + gt_gvfs_xyz_val[bid, :, :],np.expand_dims(gt_gvfs_dist_val[bid, :, 0], 1)),axis=1), delimiter=';')

@@ -11,6 +11,7 @@ sys.path.append(os.path.join(BASE_DIR, 'models'))
 print(os.path.join(BASE_DIR, 'models'))
 import gvfnet
 from threed_decoder import unet_model_3d
+import math
 
 def placeholder_inputs(scope='', FLAGS=None, num_pnts=None):
     if num_pnts is None:
@@ -80,10 +81,10 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
         vgg.vgg_16.default_image_size = img_size
         with slim.arg_scope([slim.conv2d], weights_regularizer=slim.l2_regularizer(FLAGS.wd)):
             ref_feats_embedding, encdr_end_points = vgg.vgg_16(ref_img, num_classes=FLAGS.num_classes, is_training=False, scope='vgg_16', spatial_squeeze=False)
+    ref_feats_embedding = tf.expand_dims(ref_feats_embedding,axis=-2)
     end_points['img_embedding'] = ref_feats_embedding
-    point_img_feat=None
     # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
-    dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4,
+    dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 128, 128), pool_size=(2, 2, 2), deconvolution=False, depth=int(math.log2(FLAGS.res)),
                   batch_normalization=False, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True)
     dec_feats_pnts, pc_relative = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
     gvfs_feat = gvfnet.get_gvf_decoderfeat(pc_relative, dec_feats_pnts, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
