@@ -249,7 +249,7 @@ def train():
             print("--- Get model and loss")
             # Get model and loss
 
-            end_points = model.get_model(input_pls, is_training_pl, bn=FLAGS.bn, bn_decay=bn_decay, FLAGS=FLAGS)
+            end_points = model.get_model(input_pls, is_training_pl, bn=False, bn_decay=bn_decay, FLAGS=FLAGS)
             loss, end_points = model.get_loss(end_points, FLAGS=FLAGS)
             # tf.summary.scalar('loss', loss)
 
