@@ -76,7 +76,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
         # except ImportError:
         #     raise ImportError("Install keras_contrib in order to use instance normalization."
         #                       "\nTry: pip install git+https://www.github.com/farizrahman4u/keras-contrib.git")
-        layer = InstanceNormalization(axis=1)(layer, training = training)
+        layer = InstanceNormalization(axis=-1)(layer, training = training)
     if activation is None:
         return Activation('relu')(layer)
     else:
@@ -101,9 +101,9 @@ def get_up_convolution(n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 
     if deconvolution:
         layer = Deconvolution3D(filters=n_filters, kernel_size=kernel_size, strides=strides)
         if batch_normalization:
-            layer = BatchNormalization(axis=1)(layer, training=training)
+            layer = BatchNormalization(axis=-1)(layer, training=training)
         elif instance_normalization:
-            layer = InstanceNormalization(axis=1)(layer, training=training)
+            layer = InstanceNormalization(axis=-1)(layer, training=training)
         if activation is None:
             return Activation('relu')(layer)
         else:
