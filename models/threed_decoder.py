@@ -36,12 +36,14 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
     # add levels with up-convolution or up-sampling
     for layer_depth in range(depth):
         if res:
-            previous_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=activation_lst[depth],training=training)
-            up_pre = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[depth])(previous_layer)
+            previous_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=activation_lst[layer_depth],training=training)
+            up_pre = get_up_convolution(pool_size=pool_size, deconvolution=False, n_filters=channel_size[layer_depth])(previous_layer)
         else:
             up_pre = 0
-        up_convolution = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=current_layer.get_shape().as_list()[-1])(current_layer)
-        current_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=up_convolution, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[depth],training=training)
+        current_layer = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[layer_depth])(current_layer)
+        print("current_layer",layer_depth, channel_size[layer_depth], current_layer.get_shape().as_list())
+        if not deconvolution:
+            current_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[layer_depth],training=training)
         current_layer = current_layer + up_pre
 
     final_convolution = Conv3D(channel_size[-1], (1, 1, 1))(current_layer)
