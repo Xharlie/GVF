@@ -37,10 +37,10 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
     for layer_depth in range(depth):
         if res:
             previous_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=activation_lst[layer_depth],training=training)
-            up_pre = get_up_convolution(pool_size=pool_size, deconvolution=False, n_filters=channel_size[layer_depth])(previous_layer)
+            up_pre = get_up_convolution(previous_layer,pool_size=pool_size, deconvolution=False, n_filters=channel_size[layer_depth])
         else:
             up_pre = 0
-        current_layer = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[layer_depth], batch_normalization=batch_normalization,activation=activation_lst[layer_depth], training=training)(current_layer)
+        current_layer = get_up_convolution(current_layer,pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[layer_depth], batch_normalization=batch_normalization,activation=activation_lst[layer_depth], training=training)
         print("current_layer",layer_depth, channel_size[layer_depth], current_layer.get_shape().as_list())
         if not deconvolution:
             current_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[layer_depth],training=training)
@@ -97,9 +97,9 @@ def compute_level_output_shape(n_filters, depth, pool_size, image_shape):
     return tuple([None, n_filters] + output_image_shape)
 
 
-def get_up_convolution(n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 2, 2), deconvolution=False,activation=None,batch_normalization=False,instance_normalization=False,training=False):
+def get_up_convolution(inputs, n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 2, 2), deconvolution=False,activation=None,batch_normalization=False,instance_normalization=False,training=False):
     if deconvolution:
-        layer = Deconvolution3D(filters=n_filters, kernel_size=kernel_size, strides=strides)
+        layer = Deconvolution3D(filters=n_filters, kernel_size=kernel_size, strides=strides)(inputs)
         if batch_normalization:
             layer = BatchNormalization(axis=-1)(layer, training=training)
         elif instance_normalization:
@@ -109,5 +109,5 @@ def get_up_convolution(n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 
         else:
             return get_activation(activation)(layer)
     else:
-        return UpSampling3D(size=pool_size)
+        return UpSampling3D(size=pool_size)(inputs)
 
