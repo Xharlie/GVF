@@ -70,7 +70,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     """
     layer = Conv3D(n_filters, kernel, padding=padding, strides=strides)(input_layer)
     if batch_normalization:
-        layer = BatchNormalization(axis=1)(layer, training = training)
+        layer = BatchNormalization(axis=-1)(layer, training = training)
     elif instance_normalization:
         # try:
         # except ImportError:
