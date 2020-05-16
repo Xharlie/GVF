@@ -97,8 +97,7 @@ def compute_level_output_shape(n_filters, depth, pool_size, image_shape):
     return tuple([None, n_filters] + output_image_shape)
 
 
-def get_up_convolution(n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 2, 2),
-                       deconvolution=False,activation=None,batch_normalization=batch_normalization):
+def get_up_convolution(n_filters, pool_size, kernel_size=(2, 2, 2), strides=(2, 2, 2), deconvolution=False,activation=None,batch_normalization=False,instance_normalization=False):
     if deconvolution:
         layer = Deconvolution3D(filters=n_filters, kernel_size=kernel_size, strides=strides)
         if batch_normalization:
