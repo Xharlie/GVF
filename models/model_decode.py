@@ -84,9 +84,8 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
     ref_feats_embedding = tf.expand_dims(ref_feats_embedding,axis=-2)
     end_points['img_embedding'] = ref_feats_embedding
     # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
-    dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 128, 128), pool_size=(2, 2, 2), deconvolution=False, depth=int(math.log2(FLAGS.res)),
-                  batch_normalization=False, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True)
-    dec_feats_pnts, pc_relative = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
+    dec3d = unet_model_3d(ref_feats_embedding, channel_size=(512, 256, 128, 128, 128), pool_size=(FLAGS.pool_size, FLAGS.pool_size, FLAGS.pool_size), deconvolution=False, depth=int(math.log(FLAGS.res,FLAGS.pool_size)), batch_normalization=False, instance_normalization=True, activation_lst=["relu","relu","relu","relu","sigmoid"], res=True,training=is_training)
+    dec_feats_pnts, pc_relative, pc_ind = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
     gvfs_feat = gvfnet.get_gvf_decoderfeat(pc_relative, dec_feats_pnts, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
 
     # if FLAGS.img_feat_onestream:
@@ -113,7 +112,8 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
     else:
         end_points['pred_gvfs_dist'], end_points['pred_gvfs_direction'] = gvfnet.dist_direct_gvfhead(gvfs_feat, batch_size, wd=FLAGS.wd, activation_fn=activation_fn)
         end_points['pred_gvfs_xyz'] = end_points['pred_gvfs_direction'] * end_points['pred_gvfs_dist']
-    # end_points["ref_feats_embedding"] = ref_feats_embedding
+    end_points["pc_relative"] = pc_relative
+    end_points["pc_ind"] = pc_ind
     return end_points
 
 def get_img_points(sample_pc, trans_mat_right):

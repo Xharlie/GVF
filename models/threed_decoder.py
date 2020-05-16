@@ -4,16 +4,15 @@ import numpy as np
 # from keras import backend as K
 from keras.engine import Input, Model
 from keras.layers import Conv3D, MaxPooling3D, UpSampling3D, Activation, BatchNormalization, PReLU, Deconvolution3D
-
 # K.set_image_data_format("channels_first")
-
+from keras_contrib.layers.normalization.instancenormalization import InstanceNormalization
 try:
     from keras.engine import merge
 except ImportError:
     from keras.layers.merge import concatenate
 
 
-def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4, batch_normalization=False, activation_lst=None, res=True):
+def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2, 2), deconvolution=False, depth=4, batch_normalization=False, instance_normalization=False, activation_lst=None, res=True, training=True):
     """
     Builds the 3D UNet Keras model.f
     :param metrics: List metrics to be calculated during model training (default is dice coefficient).
@@ -37,12 +36,12 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
     # add levels with up-convolution or up-sampling
     for layer_depth in range(depth):
         if res:
-            previous_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=current_layer, batch_normalization=batch_normalization, kernel=(1,1,1), activation=activation_lst[depth])
+            previous_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=activation_lst[depth],training=training)
             up_pre = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=channel_size[depth])(previous_layer)
         else:
             up_pre = 0
         up_convolution = get_up_convolution(pool_size=pool_size, deconvolution=deconvolution, n_filters=current_layer.get_shape().as_list()[-1])(current_layer)
-        current_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=up_convolution, batch_normalization=batch_normalization, activation=activation_lst[depth])
+        current_layer = create_convolution_block(n_filters=channel_size[depth], input_layer=up_convolution, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[depth],training=training)
         current_layer = current_layer + up_pre
 
     final_convolution = Conv3D(channel_size[-1], (1, 1, 1))(current_layer)
@@ -56,8 +55,7 @@ def get_activation(act):
         return act()
 
 
-def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None,
-                             padding='same', strides=(1, 1, 1), instance_normalization=False):
+def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None, padding='same', strides=(1, 1, 1), instance_normalization=False, training=True):
     """
     :param strides:
     :param input_layer:
@@ -70,14 +68,13 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     """
     layer = Conv3D(n_filters, kernel, padding=padding, strides=strides)(input_layer)
     if batch_normalization:
-        layer = BatchNormalization(axis=1)(layer)
+        layer = BatchNormalization(axis=1)(layer, training = training)
     elif instance_normalization:
-        try:
-            from keras_contrib.layers.normalization import InstanceNormalization
-        except ImportError:
-            raise ImportError("Install keras_contrib in order to use instance normalization."
-                              "\nTry: pip install git+https://www.github.com/farizrahman4u/keras-contrib.git")
-        layer = InstanceNormalization(axis=1)(layer)
+        # try:
+        # except ImportError:
+        #     raise ImportError("Install keras_contrib in order to use instance normalization."
+        #                       "\nTry: pip install git+https://www.github.com/farizrahman4u/keras-contrib.git")
+        layer = InstanceNormalization(axis=1)(layer, training = training)
     if activation is None:
         return Activation('relu')(layer)
     else:

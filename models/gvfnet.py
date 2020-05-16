@@ -2,14 +2,15 @@ import tensorflow as tf
 import tf_util
 
 def get_decoder_feat(src_pc, dec3d, dim):
-    vlength = 2.0 / dim
-    bottom = tf.reshape(tf.constant([-1.0,-1.0,-1.0]),(1,1,3))
+    vlength = 2.14 / dim
+    print("vlength", vlength)
+    bottom = tf.reshape(tf.constant([-1.07,-1.07,-1.07]),(1,1,3))
     pc_rebase = src_pc - bottom
     pc_ind = tf.maximum(tf.minimum(dim-1.0, tf.math.floordiv(pc_rebase, vlength)), 0.0)
     pc_relative = pc_rebase - (pc_ind+0.5) * vlength
     dec_feats_pnts = tf.expand_dims(tf.gather_nd(dec3d, tf.cast(pc_ind,tf.int32), batch_dims=1),axis=-2)
     print("dec3d.shape, dec_feats_pnts.shape", dec3d.get_shape().as_list(), dec_feats_pnts.get_shape().as_list())
-    return dec_feats_pnts, pc_relative
+    return dec_feats_pnts, pc_relative, pc_ind
 
 def get_gvf_decoderfeat(src_pc, decoderfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
 
