@@ -14,8 +14,8 @@ def get_decoder_feat(src_pc, dec3d, dim):
 
 def get_gvf_decoderfeat(src_pc, decoderfeats, is_training, batch_size, bn, bn_decay, wd=None, activation_fn=tf.nn.relu):
 
-    net = tf_util.conv2d(tf.expand_dims(src_pc,2), 64, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv1')
-    net = tf_util.conv2d(net, 128, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn,bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv2')
+    net = tf_util.conv2d(tf.expand_dims(src_pc,2), decoderfeats.get_shape()[-1].value//2, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv1')
+    net = tf_util.conv2d(net, decoderfeats.get_shape()[-1].value, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn,bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv2')
     # net = tf_util.conv2d(net, 512, [1,1], padding='VALID', stride=[1,1], activation_fn=activation_fn, bn_decay=bn_decay, bn=bn, is_training=is_training, weight_decay=wd, scope='fold1/conv3')
 
     print( 'net', net.shape)
