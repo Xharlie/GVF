@@ -36,7 +36,10 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
     # add levels with up-convolution or up-sampling
     for layer_depth in range(depth):
         if res:
-            previous_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=activation_lst[layer_depth],training=training)
+            if current_layer.get_shape()[-1].value != channel_size[layer_depth]:
+                previous_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, kernel=(1,1,1), activation=None, training=training)
+            else:
+                previous_layer = current_layer
             up_pre = get_up_convolution(previous_layer,pool_size=pool_size, deconvolution=False, n_filters=channel_size[layer_depth])
         else:
             up_pre = 0
@@ -46,8 +49,8 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
             current_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[layer_depth],training=training)
         current_layer = current_layer + up_pre
 
-    final_convolution = Conv3D(channel_size[-1], (1, 1, 1))(current_layer)
-    act = get_activation(activation_lst[-1])(final_convolution)
+    final_convolution = Conv3D(channel_size[depth], (1, 1, 1))(current_layer)
+    act = get_activation(activation_lst[depth])(final_convolution)
     return act
 
 def get_activation(act):
@@ -70,6 +73,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     """
     layer = Conv3D(n_filters, kernel, padding=padding, strides=strides)(input_layer)
     if batch_normalization:
+        print("pre bn layer.shape",layer.get_shape().as_list())
         layer = BatchNormalization(axis=-1)(layer, training = training)
     elif instance_normalization:
         # try:
@@ -78,7 +82,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
         #                       "\nTry: pip install git+https://www.github.com/farizrahman4u/keras-contrib.git")
         layer = InstanceNormalization(axis=-1)(layer, training = training)
     if activation is None:
-        return Activation('relu')(layer)
+        return layer
     else:
         return get_activation(activation)(layer)
 
