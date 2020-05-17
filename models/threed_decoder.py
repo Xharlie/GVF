@@ -50,14 +50,17 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
         current_layer = current_layer + up_pre
 
     final_convolution = Conv3D(channel_size[depth], (1, 1, 1))(current_layer)
-    act = get_activation(activation_lst[depth])(final_convolution)
+    act = get_activation(activation_lst[depth],final_convolution)
     return act
 
-def get_activation(act):
+def get_activation(act,layer):
     if isinstance(act, str):
-        return Activation(act)
+        if act == "atan":
+            return tf.math.atan(layer) / np.pi
+        else:
+            return Activation(act)(layer)
     else:
-        return act()
+        return act(layer)
 
 
 def create_convolution_block(input_layer, n_filters, batch_normalization=False, kernel=(3, 3, 3), activation=None, padding='same', strides=(1, 1, 1), instance_normalization=False, training=True):
@@ -84,7 +87,7 @@ def create_convolution_block(input_layer, n_filters, batch_normalization=False, 
     if activation is None:
         return layer
     else:
-        return get_activation(activation)(layer)
+        return get_activation(activation,layer)
 
 
 def compute_level_output_shape(n_filters, depth, pool_size, image_shape):
@@ -111,7 +114,7 @@ def get_up_convolution(inputs, n_filters, pool_size, kernel_size=(2, 2, 2), stri
         if activation is None:
             return Activation('relu')(layer)
         else:
-            return get_activation(activation)(layer)
+            return get_activation(activation,layer)
     else:
         return UpSampling3D(size=pool_size)(inputs)
 

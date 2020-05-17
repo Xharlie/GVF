@@ -74,6 +74,8 @@ parser.add_argument('--manifold', action='store_true')
 parser.add_argument('--lossw', nargs='+', action='store', default=[0.0, 1.0, 0.0, 0.0, 1.0, 0.0], help="xyz, locnorm, locsqrnorm, dist, dirct, drct_abs")
 parser.add_argument('--distlimit', nargs='+', action='store', type=str, default=[1.0, 0.9, 0.9, 0.8, 0.8, 0.7, 0.7, 0.6, 0.6, 0.5, 0.5, 0.4, 0.4, 0.3, 0.3, 0.2, 0.2, 0.18, 0.18, 0.16, 0.16, 0.14, 0.14, 0.12, 0.12, 0.1, 0.1, 0.08, 0.08, 0.06, 0.06, 0.05, 0.05, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02, 0.01, 0.01, -0.01])
 parser.add_argument('--surfrange', nargs='+', action='store', default=[0.0, 0.15], help="lower bound, upperbound")
+parser.add_argument('--act_lst', nargs='+', action='store', default=["relu","relu","relu","relu"], help="lower bound, upperbound")
+
 
 
 FLAGS = parser.parse_args()
