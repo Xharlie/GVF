@@ -330,7 +330,7 @@ def train():
                     test_one_epoch(sess, ops, epoch)
                 # test_one_epoch(sess, ops, epoch)
                 xyz_avg_diff, _, _ = train_one_epoch(sess, ops, epoch)
-                if epoch % 5 == 0 and epoch > 1:
+                if epoch % 3 == 0 and epoch > 1:
                     locnorm_avg_diff, direction_avg_diff = test_one_epoch(sess, ops, epoch)
                 # Save the variables to disk.
                     if locnorm_avg_diff < best_locnorm_diff:
