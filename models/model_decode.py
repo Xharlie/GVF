@@ -10,7 +10,7 @@ sys.path.append(os.path.join(BASE_DIR,'data'))
 sys.path.append(os.path.join(BASE_DIR, 'models'))
 print(os.path.join(BASE_DIR, 'models'))
 import gvfnet
-from threed_decoder import unet_model_3d
+from threed_decoder import unet_model_3d, change_channel
 import math
 
 def placeholder_inputs(scope='', FLAGS=None, num_pnts=None):
@@ -83,26 +83,32 @@ def get_model(input_pls, is_training, bn=False, bn_decay=None, img_size = 224, F
             ref_feats_embedding, encdr_end_points = vgg.vgg_16(ref_img, num_classes=FLAGS.num_classes, is_training=False, scope='vgg_16', spatial_squeeze=False)
     ref_feats_embedding = tf.expand_dims(ref_feats_embedding,axis=-2)
     end_points['img_embedding'] = ref_feats_embedding
-    # sample_img_points = get_img_points(input_pnts, input_trans_mat)  # B * N * 2
+
     dec3d = unet_model_3d(ref_feats_embedding, channel_size=FLAGS.channel_size, pool_size=(FLAGS.pool_size, FLAGS.pool_size, FLAGS.pool_size), deconvolution=FLAGS.deconv, depth=int(math.log(FLAGS.res,FLAGS.pool_size)), batch_normalization=FLAGS.bn, instance_normalization=FLAGS.inn, activation_lst=FLAGS.act_lst, res=True,training=is_training)
+
+    if FLAGS.img_feat_onestream:
+        grid_pnts = gvfnet.get_grid_loc(1.07, FLAGS.res, batch_size)
+        sample_img_points = get_img_points(grid_pnts, input_trans_mat)  # B * N * 2
+
+        with tf.compat.v1.variable_scope("sdfimgfeat") as scope:
+            if FLAGS.encoder[:3] == "vgg":
+                conv1 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv1/conv1_2'], (FLAGS.img_h, FLAGS.img_w))
+                point_conv1 = tf.contrib.resampler.resampler(conv1, sample_img_points)
+                conv2 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv2/conv2_2'], (FLAGS.img_h, FLAGS.img_w))
+                point_conv2 = tf.contrib.resampler.resampler(conv2, sample_img_points)
+                conv3 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv3/conv3_3'], (FLAGS.img_h, FLAGS.img_w))
+                point_conv3 = tf.contrib.resampler.resampler(conv3, sample_img_points)
+                conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv4/conv4_3'], (FLAGS.img_h, FLAGS.img_w))
+                point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
+                point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3, point_conv4]) # small
+
+            print("point_img_feat.shape", point_img_feat.get_shape()) # B X N X C
+            point_img_feat = tf.reshape(point_img_feat, (batch_size, FLAGS.res,FLAGS.res,FLAGS.res,-1))
+            dec3d = tf.concat([dec3d,point_img_feat],axis=-1)
+            dec3d = change_channel(dec3d, 256, "relu")
+
     dec_feats_pnts, pc_relative, pc_ind = gvfnet.get_decoder_feat(input_pnts, dec3d, FLAGS.res)
     gvfs_feat = gvfnet.get_gvf_decoderfeat(pc_relative, dec_feats_pnts, is_training, batch_size, bn, bn_decay, wd=FLAGS.wd, activation_fn=activation_fn)
-
-    # if FLAGS.img_feat_onestream:
-    #     with tf.compat.v1.variable_scope("sdfimgfeat") as scope:
-    #         if FLAGS.encoder[:3] == "vgg":
-    #             conv1 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv1/conv1_2'], (FLAGS.img_h, FLAGS.img_w))
-    #             point_conv1 = tf.contrib.resampler.resampler(conv1, sample_img_points)
-    #             conv2 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv2/conv2_2'], (FLAGS.img_h, FLAGS.img_w))
-    #             point_conv2 = tf.contrib.resampler.resampler(conv2, sample_img_points)
-    #             conv3 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv3/conv3_3'], (FLAGS.img_h, FLAGS.img_w))
-    #             point_conv3 = tf.contrib.resampler.resampler(conv3, sample_img_points)
-    #             conv4 = tf.compat.v1.image.resize_bilinear(encdr_end_points['vgg_16/conv4/conv4_3'], (FLAGS.img_h, FLAGS.img_w))
-    #             point_conv4 = tf.contrib.resampler.resampler(conv4, sample_img_points)
-    #             point_img_feat = tf.concat(axis=2, values=[point_conv1, point_conv2, point_conv3, point_conv4]) # small
-    #
-    #         print("point_img_feat.shape", point_img_feat.get_shape())
-    #         point_img_feat = tf.expand_dims(point_img_feat, axis=2)
 
     end_points['pred_gvfs_xyz'], end_points['pred_gvfs_dist'], end_points['pred_gvfs_direction'] = None, None, None
     if FLAGS.XYZ:

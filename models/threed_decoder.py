@@ -49,9 +49,13 @@ def unet_model_3d(inputs, channel_size=(512, 256, 128, 64, 64), pool_size=(2, 2,
             current_layer = create_convolution_block(n_filters=channel_size[layer_depth], input_layer=current_layer, batch_normalization=batch_normalization, instance_normalization=instance_normalization, activation=activation_lst[layer_depth],training=training)
         current_layer = current_layer + up_pre
 
-    final_convolution = Conv3D(channel_size[depth], (1, 1, 1))(current_layer)
-    act = get_activation(activation_lst[depth],final_convolution)
-    return act
+    final = change_channel(current_layer, channel_size[depth], activation_lst[depth])
+    return final
+
+def change_channel(input, new_channel, act):
+    final_convolution = Conv3D(new_channel, (1, 1, 1))(input)
+    final = get_activation(act, final_convolution)
+    return final
 
 def get_activation(act,layer):
     if isinstance(act, str):

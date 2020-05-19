@@ -50,18 +50,22 @@ nohup python -u train_gvf_decoder.py --gpu 2 --encoder vgg_16  --res 16 --log_di
 
 res 27 pool3 surf 2.14 even bn
 real chan
-nohup python -u train_gvf_decoder.py --gpu 1 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16even_bn_atan_r27p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold --act_lst relu relu relu atan &> drct_surf_mani4area_chair_vgg_dec16_bn_atan_r27p3_220000.log &
+nohup python -u train_gvf_decoder.py --img_feat_onestream --gpu 0 --inn --encoder vgg_16  --res 9 --pool_size 3 --log_dir checkpoint/ones_surf_mani4area/chair_vgg_dec16even_inn_atan_r9p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0 --wd 3e-5 --manifold --act_lst relu relu relu atan &> ones_surf_mani4area_chair_vgg_dec16_inn_atan_r9p3_220000.log &
 
 
-res 27 pool3 surf 2.14 even bn
+                res 27 pool3 surf 2.14 even bn
+                real chan
+                nohup python -u train_gvf_decoder.py --gpu 0 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r27p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_r27p3_220000.log &
+
+
+                res 27 pool3 surf 2.14 even bn  000200  poor
+                real chan
+                nohup python -u train_gvf_decoder.py --gpu 3 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r27p3_000200 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 0.0 0.0 0.0 2.0 0.0 0.0 --wd 3e-5 --manifold --act_lst relu relu relu relu atan --channel_size 256 256 128 64 64 &> drct_surf_mani4area_chair_vgg_dec16_bn_r27p3_000200.log &
+
+
+res 27 pool3 surf 2.14 even inn atan 000200
 real chan
-nohup python -u train_gvf_decoder.py --gpu 0 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r27p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_r27p3_220000.log &
-
-
-res 27 pool3 surf 2.14 even bn
-real chan
-nohup python -u train_gvf_decoder.py --gpu 3 --bn --encoder vgg_16  --res 81 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r81p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 16 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0 --wd 3e-5 --manifold --act_lst relu relu relu relu relu --channel_size 256 256 128 128 128 &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_r81p3_220000.log &
-
+nohup python -u train_gvf_decoder.py --gpu 2 --inn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchaninn_r27p3_000200 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 0.0 0.0 0.0 2.0 0.0 0.0 --wd 3e-5 --manifold --act_lst relu relu relu relu atan --channel_size 256 256 128 64 64 &> drct_surf_mani4area_chair_vgg_dec16_inn_atan_r27p3_000200.log &
 
 
 res 27 pool3 surf 2.14 even inn
@@ -69,28 +73,34 @@ real chan
 nohup python -u train_gvf_decoder.py --gpu 1 --inn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchaninn_r27p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchaninn_r27p3_220000.log &
 
 
-res 27 pool3 surf 2.14 even bn deconv
+
+res 27 pool3 surf 2.14 even inn deconv
 real chan
-nohup python -u train_gvf_decoder.py --gpu 2 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r27p3_deconv_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_deconv_r27p3_220000.log &
+nohup python -u train_gvf_decoder.py --gpu 2 --inn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16inn_r27p3_deconv_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16inn_deconv_r27p3_220000.log &
 
 
-            res 9 pool3 surf 2.14 even bn   poor
-            nohup python -u train_gvf_decoder.py --gpu 0 --bn --encoder vgg_16  --res 9 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenbn_r9p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenbn_r9p3_220000.log &
+                res 27 pool3 surf 2.14 even bn deconv
+                real chan
+                nohup python -u train_gvf_decoder.py --gpu 2 --bn --encoder vgg_16  --res 27 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_r27p3_deconv_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 3e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_deconv_r27p3_220000.log &
 
 
-            res 16 surf 2.14 even bn deconv     poor
-            real chan
-            nohup python -u train_gvf_decoder.py --gpu 2 --bn --deconv --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_deconv_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_deconv_220000.log &
+                res 9 pool3 surf 2.14 even bn   poor
+                nohup python -u train_gvf_decoder.py --gpu 0 --bn --encoder vgg_16  --res 9 --pool_size 3 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenbn_r9p3_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenbn_r9p3_220000.log &
 
 
-            res 16 surf 2.14 even bn    poor
-            real chan    2000 0.035
-                    nohup python -u train_gvf_decoder.py --gpu 3 --bn --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_220000.log &
+                res 16 surf 2.14 even bn deconv     poor
+                real chan
+                nohup python -u train_gvf_decoder.py --gpu 2 --bn --deconv --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_deconv_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_deconv_220000.log &
 
 
-            res 16 surf 2.14 even in  poor
-            nohup python -u train_gvf_decoder.py --gpu 1 --inn --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenin_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenin_220000.log &
+                res 16 surf 2.14 even bn    poor
+                real chan    2000 0.035
+                nohup python -u train_gvf_decoder.py --gpu 3 --bn --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenchanbn_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenchanbn_220000.log &
 
 
-            res 8 surf   poor
-            nohup python -u train_gvf_decoder.py --gpu 2 --encoder vgg_16  --res 8 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec8_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 28 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec8_220000.log &
+                res 16 surf 2.14 even in  poor
+                nohup python -u train_gvf_decoder.py --gpu 1 --inn --encoder vgg_16  --res 16 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec16evenin_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 20 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec16evenin_220000.log &
+
+
+                res 8 surf   poor
+                nohup python -u train_gvf_decoder.py --gpu 2 --encoder vgg_16  --res 8 --log_dir checkpoint/drct_surf_mani4area/chair_vgg_dec8_220000 --category chair --uni_num 0 --num_pnts 2048 --batch_size 28 --learning_rate 0.0001 --weight_type non --lossw 2.0 2.0 0.0 0.0 0.0 0.0  --wd 1e-5 --manifold &> drct_surf_mani4area_chair_vgg_dec8_220000.log &
