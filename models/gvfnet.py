@@ -5,7 +5,7 @@ import tf_util
 
 def get_grid_loc(span, dim, bsize):
     vlength = span * 2 / dim
-    pos = (tf.range(0.0, dim, delta=1.0) + 0.5) * vlength
+    pos = (tf.range(0.0, dim, delta=1.0) + 0.5) * vlength - span
     x, y, z = tf.meshgrid(pos, pos, pos)
     xyz = tf.reshape(tf.concat([x, y, z], axis = -1), (1,-1,3))
     return tf.tile(xyz, (bsize,1,1))
